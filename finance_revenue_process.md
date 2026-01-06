@@ -129,24 +129,30 @@ The process should filter for the prior month. For example:
 
 See `04_create_mapped_view.sql` for the complete view creation script.
 
+**Important:** The view uses a LEFT JOIN with `BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION` as the master table. This ensures:
+- **All revenue records** from the prior month are included in the view
+- **Mapping fields** are populated when a mapping exists for the revenue record
+- **Mapping fields are NULL** when no mapping exists (revenue records are still included)
+
 ```sql
 -- Create view with dynamic prior month calculation
+-- Master: BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION
+-- LEFT JOIN to mapping_template_raw_CURSOR to include all revenue records
 CREATE OR REPLACE VIEW dataeng_stage.public.view_partner_finance_mapped AS
 SELECT 
-    -- Mapping fields
-    m.ID,
+    -- All fields from revenue aggregation view (master)
+    r.*,
+    
+    -- Mapping fields from mapping_template_raw_CURSOR (may be NULL if no mapping)
     m.Oracle_Customer_Name,
     m.Oracle_Customer_Name_ID,
     m.Oracle_Invoice_Group,
     m.Oracle_Invoice_Name,
-    m.Oracle_GL_Account,
+    m.Oracle_GL_Account
     
-    -- Revenue aggregation fields
-    r.*
-    
-FROM dataeng_stage.public.mapping_template_raw_CURSOR m
-INNER JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-    ON m.ID = r.ID
+FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
+LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+    ON r.ID = m.ID
 WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
     -- Alternative: Use specific date
     -- WHERE r.data_month = '2025-12-01'
@@ -162,11 +168,11 @@ WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
 See `05_data_quality_checks_merged.sql` for complete validation queries.
 
 **Key Checks:**
-1. **Mapping Coverage**: What percentage of mapping records successfully joined
-2. **Unmapped Records**: Which mapping records did not find a match
-3. **Revenue Coverage**: What percentage of revenue records were mapped
-4. **Unmapped Revenue**: Which revenue records did not get mapped
-5. **Data Completeness**: Check for NULL values in critical joined fields
+1. **Revenue Coverage**: What percentage of revenue records were successfully mapped
+2. **Unmapped Revenue**: Which revenue records did not get a mapping (mapping fields will be NULL)
+3. **Mapping Usage**: What percentage of mapping records were used (some mappings may not have revenue)
+4. **Unused Mappings**: Which mapping records did not find a matching revenue record
+5. **Data Completeness**: Check for NULL values in mapping fields (expected for unmapped revenue)
 
 ### 5.2 Mapping Summary Query
 
@@ -208,17 +214,8 @@ CROSS JOIN revenue_stats rs;
 ### 5.3 Identify Unmapped Records
 
 ```sql
--- Unmapped mapping records
-SELECT 
-    m.*,
-    'No matching revenue record found' AS unmapped_reason
-FROM dataeng_stage.public.mapping_template_raw_CURSOR m
-LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-    ON m.ID = r.ID
-    AND r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
-WHERE r.ID IS NULL;
-
--- Unmapped revenue records
+-- Unmapped revenue records (revenue exists but no mapping found)
+-- These records will appear in the view with NULL mapping fields
 SELECT 
     r.*,
     'No matching mapping record found' AS unmapped_reason
@@ -227,6 +224,17 @@ LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
     ON r.ID = m.ID
 WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
     AND m.ID IS NULL;
+
+-- Unused mapping records (mapping exists but no revenue for prior month)
+-- These mappings are not used in the current view
+SELECT 
+    m.*,
+    'No matching revenue record found for prior month' AS unmapped_reason
+FROM dataeng_stage.public.mapping_template_raw_CURSOR m
+LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
+    ON m.ID = r.ID
+    AND r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
+WHERE r.ID IS NULL;
 ```
 
 ---
