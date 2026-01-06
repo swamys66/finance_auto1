@@ -51,7 +51,87 @@ FROM @your_stage_name/mapping_file.csv
 FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"');
 ```
 
-**Option C: Using Python/Snowflake Connector**
+**Option C: Loading CSV from S3 Bucket**
+This option loads the CSV file directly from an S3 bucket into Snowflake.
+
+**Prerequisites:**
+- S3 bucket with the CSV file
+- AWS credentials configured in Snowflake
+- External stage created (or use existing stage)
+
+**Step 1: Create External Stage (if not already exists)**
+```sql
+-- Create external stage for S3
+CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
+    URL = 's3://your-bucket-name/mapping-files/'
+    CREDENTIALS = (
+        AWS_KEY_ID = 'your-aws-access-key-id'
+        AWS_SECRET_KEY = 'your-aws-secret-access-key'
+    )
+    FILE_FORMAT = (TYPE = 'CSV' 
+                   SKIP_HEADER = 1 
+                   FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+                   ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE);
+
+-- Alternative: Use IAM Role (if configured in Snowflake)
+/*
+CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
+    URL = 's3://your-bucket-name/mapping-files/'
+    CREDENTIALS = (AWS_ROLE = 'arn:aws:iam::123456789012:role/snowflake-role')
+    FILE_FORMAT = (TYPE = 'CSV' 
+                   SKIP_HEADER = 1 
+                   FIELD_OPTIONALLY_ENCLOSED_BY = '"');
+*/
+```
+
+**Step 2: Create Table Structure**
+```sql
+CREATE OR REPLACE TABLE dataeng_stage.public.mapping_template_raw_CURSOR (
+    ID VARCHAR,
+    Oracle_Customer_Name VARCHAR,
+    Oracle_Customer_Name_ID VARCHAR,
+    Oracle_Invoice_Group VARCHAR,
+    Oracle_Invoice_Name VARCHAR,
+    Oracle_GL_Account VARCHAR
+);
+```
+
+**Step 3: Load Data from S3**
+```sql
+-- Load from specific file
+COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
+FROM @dataeng_stage.public.s3_mapping_import/mapping_file.csv
+FILE_FORMAT = (TYPE = 'CSV' 
+               SKIP_HEADER = 1 
+               FIELD_OPTIONALLY_ENCLOSED_BY = '"'
+               ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE)
+ON_ERROR = 'ABORT_STATEMENT';
+
+-- Or load from pattern (e.g., latest file with timestamp)
+/*
+COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
+FROM @dataeng_stage.public.s3_mapping_import/
+FILE_FORMAT = (TYPE = 'CSV' 
+               SKIP_HEADER = 1 
+               FIELD_OPTIONALLY_ENCLOSED_BY = '"')
+PATTERN = '.*mapping.*\\.csv'
+ON_ERROR = 'ABORT_STATEMENT';
+*/
+```
+
+**Step 4: Verify Load**
+```sql
+-- Check row count
+SELECT COUNT(*) AS loaded_rows 
+FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+
+-- Preview data
+SELECT * 
+FROM dataeng_stage.public.mapping_template_raw_CURSOR 
+LIMIT 10;
+```
+
+**Option D: Using Python/Snowflake Connector**
 See `01_load_csv_to_snowflake.py` for a Python script example.
 
 ---
