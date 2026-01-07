@@ -54,6 +54,8 @@ FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"');
 **Option C: Loading CSV from S3 Bucket**
 This option loads the CSV file directly from an S3 bucket into Snowflake.
 
+See `02_import_from_s3.sql` for the complete SQL script with all options and verification queries.
+
 **Prerequisites:**
 - S3 bucket with the CSV file
 - AWS credentials configured in Snowflake
@@ -421,6 +423,7 @@ Consider creating an Airflow DAG or scheduled job that:
 
 ## Related Files
 - `01_load_csv_to_snowflake.py` - Python script for CSV loading
+- `02_import_from_s3.sql` - SQL script for importing CSV from S3 bucket
 - `03_data_quality_checks_raw.sql` - Raw data quality validation
 - `04_create_mapped_view.sql` - View creation script
 - `05_data_quality_checks_merged.sql` - Merged data quality validation
