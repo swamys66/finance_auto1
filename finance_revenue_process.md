@@ -387,22 +387,65 @@ OVERWRITE = TRUE;
 
 ---
 
-## Step 7: Automation Considerations
+## Step 7: Automation
 
-### 7.1 Monthly Automation Script
-Consider creating an Airflow DAG or scheduled job that:
-1. Automatically determines the prior month
-2. Loads the latest CSV mapping file
-3. Runs all data quality checks
-4. Creates/updates the merged view
-5. Exports to S3 with timestamped filenames
-6. Sends notification with data quality summary
+### 7.1 Automation Options
 
-### 7.2 Error Handling
+See `07_automation_guide.md` for comprehensive automation options including:
+- **Airflow DAG** (Recommended for Enterprise) - See `08_finance_revenue_automation_dag.py`
+- **Snowflake Tasks** (Native Snowflake Scheduling) - See `09_snowflake_tasks.sql`
+- **Python Script with Cron** (Simple Automation) - See `10_automated_import_script.py`
+- **Cloud Functions** (Event-driven, Serverless)
+
+### 7.2 Quick Start: Python Script
+
+For simple automation, use the Python script:
+
+```bash
+# Install dependencies
+pip install snowflake-connector-python
+
+# Set environment variables
+export SNOWFLAKE_USER=your_user
+export SNOWFLAKE_PASSWORD=your_password
+export SNOWFLAKE_ACCOUNT=your_account
+
+# Run all steps
+python 10_automated_import_script.py
+
+# Run specific step
+python 10_automated_import_script.py --step import
+
+# Dry run (test without executing)
+python 10_automated_import_script.py --dry-run
+```
+
+### 7.3 Quick Start: Snowflake Tasks
+
+For native Snowflake scheduling:
+
+```sql
+-- Execute the task setup script
+-- This creates scheduled tasks that run automatically
+-- See 09_snowflake_tasks.sql for complete setup
+```
+
+### 7.4 Quick Start: Airflow DAG
+
+For enterprise automation with Airflow:
+
+1. Copy `08_finance_revenue_automation_dag.py` to your Airflow DAGs folder
+2. Configure Snowflake connection in Airflow
+3. Adjust schedule and parameters as needed
+4. Deploy and monitor in Airflow UI
+
+### 7.5 Error Handling
 - Validate CSV file format before loading
 - Check data quality thresholds before proceeding
 - Alert on high unmapped record percentages
 - Verify S3 export completion
+- Automatic retries on failure
+- Email notifications on errors
 
 ---
 
@@ -422,10 +465,18 @@ Consider creating an Airflow DAG or scheduled job that:
 ---
 
 ## Related Files
+
+### Core Process Files
 - `01_load_csv_to_snowflake.py` - Python script for CSV loading
 - `02_import_from_s3.sql` - SQL script for importing CSV from S3 bucket
 - `03_data_quality_checks_raw.sql` - Raw data quality validation
 - `04_create_mapped_view.sql` - View creation script
 - `05_data_quality_checks_merged.sql` - Merged data quality validation
 - `06_export_to_s3.sql` - S3 export script
+
+### Automation Files
+- `07_automation_guide.md` - Comprehensive automation guide with all options
+- `08_finance_revenue_automation_dag.py` - Airflow DAG for complete automation
+- `09_snowflake_tasks.sql` - Snowflake native task scheduling
+- `10_automated_import_script.py` - Python script for cron/scheduler automation
 
