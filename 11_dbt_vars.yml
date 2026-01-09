@@ -1,0 +1,17 @@
+# DBT Variables Configuration for Finance Revenue S3 Import
+# Set these variables in your dbt_project.yml or profiles.yml
+
+vars:
+  # S3 Configuration
+  s3_mapping_stage: "dataeng_stage.public.s3_mapping_import"
+  s3_mapping_bucket_url: "s3://your-bucket-name/mapping-files/"
+  s3_mapping_file_pattern: ".*mapping.*\\.csv"
+  
+  # AWS Credentials (use environment variables or dbt Cloud for security)
+  # These should be set via environment variables or dbt Cloud connections
+  # aws_key_id: "{{ env_var('AWS_ACCESS_KEY_ID') }}"
+  # aws_secret_key: "{{ env_var('AWS_SECRET_ACCESS_KEY') }}"
+  
+  # Alternative: Use IAM Role (recommended for production)
+  # aws_role: "arn:aws:iam::123456789012:role/snowflake-role"
+

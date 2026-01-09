@@ -136,6 +136,24 @@ LIMIT 10;
 **Option D: Using Python/Snowflake Connector**
 See `01_load_csv_to_snowflake.py` for a Python script example.
 
+**Option E: Using DBT (Data Build Tool)**
+See `11_dbt_README.md` for complete dbt implementation. This approach provides:
+- Version-controlled SQL code
+- Built-in data quality tests
+- Automatic documentation
+- Integration with dbt workflows
+
+**Quick Start:**
+```bash
+# Run dbt model
+dbt run --select mapping_template_raw_cursor
+
+# Run tests
+dbt test --select mapping_template_raw_cursor
+```
+
+See `11_dbt_import_from_s3.sql` and `11_dbt_macros.sql` for implementation details.
+
 ---
 
 ## Step 2: Verify Table Structure
@@ -479,4 +497,12 @@ For enterprise automation with Airflow:
 - `08_finance_revenue_automation_dag.py` - Airflow DAG for complete automation
 - `09_snowflake_tasks.sql` - Snowflake native task scheduling
 - `10_automated_import_script.py` - Python script for cron/scheduler automation
+
+### DBT Implementation Files
+- `11_dbt_import_from_s3.sql` - DBT model for S3 import
+- `11_dbt_macros.sql` - Reusable dbt macros for S3 operations
+- `11_dbt_models.yml` - Model documentation and tests
+- `11_dbt_vars.yml` - Configuration variables
+- `11_dbt_README.md` - Complete dbt implementation guide
+- `11_dbt_import_from_s3_simple.sql` - Alternative simpler dbt model
 

@@ -1,0 +1,54 @@
+version: 2
+
+models:
+  - name: mapping_template_raw_cursor
+    description: |
+      Raw mapping template data imported from S3 bucket.
+      This table contains Oracle mapping information that will be joined with revenue aggregation data.
+      
+      **Source**: CSV file from S3 bucket
+      **Load Method**: DBT model with pre-hooks for S3 stage setup
+      **Update Frequency**: As needed (typically monthly)
+      
+      **Columns**:
+      - ID: Unique identifier for mapping
+      - Oracle_Customer_Name: Customer name in Oracle system
+      - Oracle_Customer_Name_ID: Customer ID in Oracle system
+      - Oracle_Invoice_Group: Invoice group in Oracle
+      - Oracle_Invoice_Name: Invoice name in Oracle
+      - Oracle_GL_Account: General Ledger account in Oracle
+    
+    config:
+      materialized: table
+      schema: public
+      database: dataeng_stage
+      tags:
+        - finance
+        - revenue
+        - mapping
+        - s3_import
+    
+    columns:
+      - name: ID
+        description: 'Unique identifier for the mapping record. Must be unique and non-null.'
+        tests:
+          - not_null
+          - unique
+      
+      - name: Oracle_Customer_Name
+        description: 'Customer name as it appears in Oracle system'
+      
+      - name: Oracle_Customer_Name_ID
+        description: 'Customer ID in Oracle system'
+      
+      - name: Oracle_Invoice_Group
+        description: 'Invoice group classification in Oracle'
+      
+      - name: Oracle_Invoice_Name
+        description: 'Invoice name in Oracle system'
+      
+      - name: Oracle_GL_Account
+        description: 'General Ledger account code in Oracle. Critical field for finance mapping.'
+        tests:
+          - not_null
+
