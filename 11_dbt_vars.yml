@@ -3,8 +3,9 @@
 
 vars:
   # S3 Configuration
-  s3_mapping_stage: "dataeng_stage.public.s3_mapping_import"
-  s3_mapping_bucket_url: "s3://your-bucket-name/mapping-files/"
+  # Using existing stage: dev_data_ingress.finance.s3_test_finance_automation_input
+  s3_mapping_stage: "dev_data_ingress.finance.s3_test_finance_automation_input"
+  s3_mapping_bucket_url: "s3://your-bucket-name/mapping-files/"  # Stage already configured, this is informational
   s3_mapping_file_pattern: ".*mapping.*\\.csv"
   
   # AWS Credentials (use environment variables or dbt Cloud for security)

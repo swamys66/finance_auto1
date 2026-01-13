@@ -2,10 +2,27 @@
 -- These macros support the dbt model for importing from S3
 
 {% macro create_s3_mapping_stage() %}
-    {# Create external stage for S3 mapping files if it doesn't exist #}
+    {# Verify external stage exists (stage is pre-configured: dev_data_ingress.finance.s3_test_finance_automation_input) #}
+    {# This macro verifies the stage exists rather than creating it #}
     
+    {% set stage_name = var('s3_mapping_stage', 'dev_data_ingress.finance.s3_test_finance_automation_input') %}
+    
+    {% set verify_sql %}
+    DESCRIBE STAGE {{ stage_name }};
+    {% endset %}
+    
+    {% set results = run_query(verify_sql) %}
+    
+    {% if execute %}
+        {{ log("S3 mapping stage verified: " ~ stage_name, info=True) }}
+    {% else %}
+        {{ exceptions.raise_compiler_error("S3 mapping stage not found: " ~ stage_name ~ ". Please ensure the stage exists.") }}
+    {% endif %}
+    
+    {# Optional: Uncomment below to create stage if it doesn't exist (not needed if stage is pre-configured) #}
+    {#
     {% set stage_sql %}
-    CREATE STAGE IF NOT EXISTS {{ var('s3_mapping_stage', 'dataeng_stage.public.s3_mapping_import') }}
+    CREATE STAGE IF NOT EXISTS {{ stage_name }}
         URL = '{{ var("s3_mapping_bucket_url", "s3://your-bucket-name/mapping-files/") }}'
         CREDENTIALS = (
             AWS_KEY_ID = '{{ var("aws_key_id", "your-aws-access-key-id") }}'
@@ -20,6 +37,7 @@
     
     {% do run_query(stage_sql) %}
     {{ log("S3 mapping stage created/verified", info=True) }}
+    #}
 {% endmacro %}
 
 

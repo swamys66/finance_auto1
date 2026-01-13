@@ -7,7 +7,7 @@
         pre_hook=[
             "{{ create_s3_mapping_stage() }}",
             "{{ truncate_mapping_table() }}",
-            "{{ load_from_s3_pattern(var('s3_mapping_stage', 'dataeng_stage.public.s3_mapping_import'), var('s3_mapping_file_pattern', '.*mapping.*\\.csv'), this) }}"
+            "{{ load_from_s3_pattern(var('s3_mapping_stage', 'dev_data_ingress.finance.s3_test_finance_automation_input'), var('s3_mapping_file_pattern', '.*mapping.*\\.csv'), this) }}"
         ],
         post_hook=[
             "{{ validate_import() }}"

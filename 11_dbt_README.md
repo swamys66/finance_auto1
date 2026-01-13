@@ -17,25 +17,32 @@ Add these variables to your `dbt_project.yml`:
 
 ```yaml
 vars:
-  s3_mapping_stage: "dataeng_stage.public.s3_mapping_import"
-  s3_mapping_bucket_url: "s3://your-bucket-name/mapping-files/"
+  # Using existing stage: dev_data_ingress.finance.s3_test_finance_automation_input
+  s3_mapping_stage: "dev_data_ingress.finance.s3_test_finance_automation_input"
+  s3_mapping_bucket_url: "s3://your-bucket-name/mapping-files/"  # Informational only
   s3_mapping_file_pattern: ".*mapping.*\\.csv"
 ```
 
-### 2. Configure AWS Credentials
+**Note:** The stage `dev_data_ingress.finance.s3_test_finance_automation_input` is pre-configured and already exists. The macro will verify it exists rather than creating it.
 
-**Option A: Environment Variables (Recommended)**
-```bash
-export AWS_ACCESS_KEY_ID=your-key-id
-export AWS_SECRET_ACCESS_KEY=your-secret-key
+### 2. Stage Configuration
+
+**The stage `dev_data_ingress.finance.s3_test_finance_automation_input` is pre-configured and already exists.**
+
+The stage should already have:
+- S3 bucket URL configured
+- AWS credentials configured (via IAM role or key/secret)
+- File format settings configured
+
+**If you need to verify the stage:**
+```sql
+DESCRIBE STAGE dev_data_ingress.finance.s3_test_finance_automation_input;
+LIST @dev_data_ingress.finance.s3_test_finance_automation_input;
 ```
 
-**Option B: dbt Cloud Connections**
-- Configure AWS credentials in dbt Cloud connection settings
-
-**Option C: IAM Role (Best for Production)**
-- Set up IAM role in Snowflake
-- Update macro to use `AWS_ROLE` instead of key/secret
+**If you need to create a new stage (not recommended if using existing one):**
+- The macro will verify the stage exists
+- If you need to create it, uncomment the creation code in the macro
 
 ### 3. Add Macros to Your Project
 
