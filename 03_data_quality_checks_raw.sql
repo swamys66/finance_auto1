@@ -1,5 +1,5 @@
 -- Data Quality Checks for Raw Mapping Data
--- Table: dataeng_stage.public.mapping_template_raw_CURSOR
+-- Table: dev_data_ingress.finance.mapping_template_raw_CURSOR
 
 -- ============================================================================
 -- 1. UNIQUENESS CHECK: Verify ID is unique
@@ -13,13 +13,13 @@ SELECT
         WHEN COUNT(*) = COUNT(DISTINCT ID) THEN 'PASS'
         ELSE 'FAIL - Duplicate IDs found'
     END AS status
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- Show duplicate IDs if any
 SELECT 
     ID,
     COUNT(*) AS occurrence_count
-FROM dataeng_stage.public.mapping_template_raw_CURSOR
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR
 GROUP BY ID
 HAVING COUNT(*) > 1
 ORDER BY occurrence_count DESC;
@@ -39,11 +39,11 @@ SELECT
     COUNT(*) - COUNT(ID) AS null_ids,
     COUNT(*) - COUNT(Oracle_Customer_Name) AS null_customer_names,
     COUNT(*) - COUNT(Oracle_GL_Account) AS null_gl_accounts
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- Records with NULL IDs (should be zero)
 SELECT *
-FROM dataeng_stage.public.mapping_template_raw_CURSOR
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR
 WHERE ID IS NULL;
 
 -- Records with NULL in critical fields
@@ -51,7 +51,7 @@ SELECT
     ID,
     CASE WHEN Oracle_Customer_Name IS NULL THEN 'NULL' ELSE 'OK' END AS customer_name_status,
     CASE WHEN Oracle_GL_Account IS NULL THEN 'NULL' ELSE 'OK' END AS gl_account_status
-FROM dataeng_stage.public.mapping_template_raw_CURSOR
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR
 WHERE Oracle_Customer_Name IS NULL 
    OR Oracle_GL_Account IS NULL;
 
@@ -64,7 +64,7 @@ SELECT
     COUNT(*) AS total_records,
     COUNT(CASE WHEN ID REGEXP '^[A-Za-z0-9]+$' THEN 1 END) AS valid_format_ids,
     COUNT(*) - COUNT(CASE WHEN ID REGEXP '^[A-Za-z0-9]+$' THEN 1 END) AS invalid_format_ids
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- Check for empty strings (treated as NULL)
 SELECT 
@@ -72,7 +72,7 @@ SELECT
     COUNT(CASE WHEN TRIM(ID) = '' THEN 1 END) AS empty_ids,
     COUNT(CASE WHEN TRIM(Oracle_Customer_Name) = '' THEN 1 END) AS empty_customer_names,
     COUNT(CASE WHEN TRIM(Oracle_GL_Account) = '' THEN 1 END) AS empty_gl_accounts
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- ============================================================================
 -- 4. DATA LENGTH VALIDATION: Check for unusually long or short values
@@ -86,7 +86,7 @@ SELECT
     MAX(LENGTH(Oracle_Customer_Name)) AS max_customer_name_length,
     MIN(LENGTH(Oracle_GL_Account)) AS min_gl_account_length,
     MAX(LENGTH(Oracle_GL_Account)) AS max_gl_account_length
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- ============================================================================
 -- 5. COMPREHENSIVE DATA QUALITY SUMMARY
@@ -102,7 +102,7 @@ WITH quality_checks AS (
         COUNT(CASE WHEN Oracle_Customer_Name_ID IS NULL THEN 1 END) AS null_customer_name_ids,
         COUNT(CASE WHEN Oracle_Invoice_Group IS NULL THEN 1 END) AS null_invoice_groups,
         COUNT(CASE WHEN Oracle_Invoice_Name IS NULL THEN 1 END) AS null_invoice_names
-    FROM dataeng_stage.public.mapping_template_raw_CURSOR
+    FROM dev_data_ingress.finance.mapping_template_raw_CURSOR
 )
 SELECT 
     'DATA QUALITY SUMMARY' AS report_section,
@@ -137,6 +137,6 @@ FROM quality_checks;
 SELECT 
     'Sample Data Preview' AS report_section,
     *
-FROM dataeng_stage.public.mapping_template_raw_CURSOR
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR
 LIMIT 10;
 

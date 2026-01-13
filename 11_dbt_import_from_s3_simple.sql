@@ -1,8 +1,8 @@
 {{
     config(
         materialized='table',
-        schema='public',
-        database='dataeng_stage',
+        schema='finance',
+        database='dev_data_ingress',
         tags=['finance', 'revenue', 'mapping', 's3_import'],
         post_hook=[
             "{{ validate_import() }}"

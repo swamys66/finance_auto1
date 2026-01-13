@@ -52,7 +52,7 @@ def validate_import_success(**context):
     hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_CONN_ID)
     sql = """
     SELECT COUNT(*) AS row_count
-    FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+    FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
     """
     result = hook.get_first(sql)
     row_count = result[0] if result else 0
@@ -69,7 +69,7 @@ def validate_view_creation(**context):
     hook = SnowflakeHook(snowflake_conn_id=SNOWFLAKE_CONN_ID)
     sql = """
     SELECT COUNT(*) AS row_count
-    FROM dataeng_stage.public.view_partner_finance_mapped;
+    FROM dev_data_ingress.finance.view_partner_finance_mapped;
     """
     result = hook.get_first(sql)
     row_count = result[0] if result else 0

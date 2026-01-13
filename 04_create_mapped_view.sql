@@ -6,7 +6,7 @@
 -- Master: BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION
 -- LEFT JOIN to mapping_template_raw_CURSOR to include all revenue records
 -- ============================================================================
-CREATE OR REPLACE VIEW dataeng_stage.public.view_partner_finance_mapped AS
+CREATE OR REPLACE VIEW dev_data_ingress.finance.view_partner_finance_mapped AS
 SELECT 
     -- All fields from revenue aggregation view (master)
     r.*,
@@ -19,7 +19,7 @@ SELECT
     m.Oracle_GL_Account
     
 FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
     ON r.ID = m.ID
 WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()));
 
@@ -28,7 +28,7 @@ WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()));
 -- ============================================================================
 -- Uncomment and modify the date below for specific month processing
 /*
-CREATE OR REPLACE VIEW dataeng_stage.public.view_partner_finance_mapped AS
+CREATE OR REPLACE VIEW dev_data_ingress.finance.view_partner_finance_mapped AS
 SELECT 
     -- All fields from revenue aggregation view (master)
     r.*,
@@ -40,7 +40,7 @@ SELECT
     m.Oracle_Invoice_Name,
     m.Oracle_GL_Account
 FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
     ON r.ID = m.ID
 WHERE r.data_month = '2025-12-01';  -- Update with target month
 */
@@ -51,7 +51,7 @@ WHERE r.data_month = '2025-12-01';  -- Update with target month
 -- Use this if you want to see all mapping records, including those without matches
 -- Note: This reverses the join - mapping table is master, revenue is optional
 /*
-CREATE OR REPLACE VIEW dataeng_stage.public.view_partner_finance_mapped AS
+CREATE OR REPLACE VIEW dev_data_ingress.finance.view_partner_finance_mapped AS
 SELECT 
     -- Mapping fields from mapping_template_raw_CURSOR (master)
     m.ID,
@@ -63,7 +63,7 @@ SELECT
     
     -- All fields from revenue aggregation view (may be NULL if no revenue)
     r.*
-FROM dataeng_stage.public.mapping_template_raw_CURSOR m
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR m
 LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
     ON m.ID = r.ID
     AND r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()));
@@ -73,15 +73,15 @@ LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
 -- Verify View Creation
 -- ============================================================================
 -- Check view definition
-DESCRIBE VIEW dataeng_stage.public.view_partner_finance_mapped;
+DESCRIBE VIEW dev_data_ingress.finance.view_partner_finance_mapped;
 
 -- Check row count
 SELECT COUNT(*) AS total_mapped_records
-FROM dataeng_stage.public.view_partner_finance_mapped;
+FROM dev_data_ingress.finance.view_partner_finance_mapped;
 
 -- Preview sample data
 SELECT *
-FROM dataeng_stage.public.view_partner_finance_mapped
+FROM dev_data_ingress.finance.view_partner_finance_mapped
 LIMIT 10;
 
 -- ============================================================================

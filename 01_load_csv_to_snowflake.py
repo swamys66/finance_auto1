@@ -24,8 +24,8 @@ SNOWFLAKE_CONFIG = {
     'password': os.getenv('SNOWFLAKE_PASSWORD'),
     'account': os.getenv('SNOWFLAKE_ACCOUNT'),
     'warehouse': os.getenv('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH'),
-    'database': 'dataeng_stage',
-    'schema': 'public'
+    'database': 'dev_data_ingress',
+    'schema': 'finance'
 }
 
 TABLE_NAME = 'mapping_template_raw_CURSOR'

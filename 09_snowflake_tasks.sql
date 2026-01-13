@@ -30,7 +30,7 @@ CREATE OR REPLACE TASK import_csv_from_s3
 AS
 BEGIN
     -- Create external stage (if not exists)
-    CREATE STAGE IF NOT EXISTS dataeng_stage.public.s3_mapping_import
+    CREATE STAGE IF NOT EXISTS dev_data_ingress.finance.s3_mapping_import
         URL = 's3://your-bucket-name/mapping-files/'
         CREDENTIALS = (
             AWS_KEY_ID = 'your-aws-access-key-id'
@@ -42,7 +42,7 @@ BEGIN
                        ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE);
 
     -- Create table structure
-    CREATE TABLE IF NOT EXISTS dataeng_stage.public.mapping_template_raw_CURSOR (
+    CREATE TABLE IF NOT EXISTS dev_data_ingress.finance.mapping_template_raw_CURSOR (
         ID VARCHAR,
         Oracle_Customer_Name VARCHAR,
         Oracle_Customer_Name_ID VARCHAR,
@@ -52,11 +52,11 @@ BEGIN
     );
 
     -- Truncate existing data
-    TRUNCATE TABLE dataeng_stage.public.mapping_template_raw_CURSOR;
+    TRUNCATE TABLE dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
     -- Load from S3 (adjust file name/pattern as needed)
-    COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
-    FROM @dataeng_stage.public.s3_mapping_import/
+    COPY INTO dev_data_ingress.finance.mapping_template_raw_CURSOR
+    FROM @dev_data_ingress.finance.s3_mapping_import/
     FILE_FORMAT = (TYPE = 'CSV' 
                    SKIP_HEADER = 1 
                    FIELD_OPTIONALLY_ENCLOSED_BY = '"'
@@ -85,7 +85,7 @@ BEGIN
     BEGIN
         SELECT COUNT(*), COUNT(DISTINCT ID)
         INTO row_count, unique_count
-        FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+        FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
         
         IF row_count = 0 THEN
             RAISE EXCEPTION 'Data quality check failed: No rows loaded';
@@ -106,7 +106,7 @@ CREATE OR REPLACE TASK create_mapped_view
     COMMENT = 'Create merged view with revenue aggregation'
 AS
 BEGIN
-    CREATE OR REPLACE VIEW dataeng_stage.public.view_partner_finance_mapped AS
+    CREATE OR REPLACE VIEW dev_data_ingress.finance.view_partner_finance_mapped AS
     SELECT 
         r.*,
         m.Oracle_Customer_Name,
@@ -115,7 +115,7 @@ BEGIN
         m.Oracle_Invoice_Name,
         m.Oracle_GL_Account
     FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-    LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+    LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
         ON r.ID = m.ID
     WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()));
 END;
@@ -130,7 +130,7 @@ CREATE OR REPLACE TASK export_to_s3
 AS
 BEGIN
     -- Create export stage (if not exists)
-    CREATE STAGE IF NOT EXISTS dataeng_stage.public.s3_finance_export
+    CREATE STAGE IF NOT EXISTS dev_data_ingress.finance.s3_finance_export
         URL = 's3://your-bucket-name/finance-revenue-exports/'
         CREDENTIALS = (
             AWS_KEY_ID = 'your-aws-access-key-id'
@@ -142,12 +142,12 @@ BEGIN
                        HEADER = TRUE);
 
     -- Export to S3 with timestamp
-    COPY INTO @dataeng_stage.public.s3_finance_export/partner_finance_mapped_
+    COPY INTO @dev_data_ingress.finance.s3_finance_export/partner_finance_mapped_
         || TO_CHAR(DATEADD(MONTH, -1, CURRENT_DATE()), 'YYYYMM') 
         || '.csv.gz'
     FROM (
         SELECT * 
-        FROM dataeng_stage.public.view_partner_finance_mapped
+        FROM dev_data_ingress.finance.view_partner_finance_mapped
         ORDER BY ID
     )
     FILE_FORMAT = (TYPE = 'CSV' 

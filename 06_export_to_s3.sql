@@ -1,5 +1,5 @@
 -- Export Merged View to S3 Bucket
--- View: dataeng_stage.public.view_partner_finance_mapped
+-- View: dev_data_ingress.finance.view_partner_finance_mapped
 
 -- ============================================================================
 -- STEP 1: Create External Stage (if not already exists)
@@ -9,7 +9,7 @@
 -- - AWS credentials (or use IAM role if configured)
 -- - File path prefix
 
-CREATE OR REPLACE STAGE dataeng_stage.public.s3_finance_export
+CREATE OR REPLACE STAGE dev_data_ingress.finance.s3_finance_export
     URL = 's3://your-bucket-name/finance-revenue-exports/'
     CREDENTIALS = (
         AWS_KEY_ID = 'your-aws-access-key-id'
@@ -23,7 +23,7 @@ CREATE OR REPLACE STAGE dataeng_stage.public.s3_finance_export
 
 -- Alternative: Use IAM Role (if configured in Snowflake)
 /*
-CREATE OR REPLACE STAGE dataeng_stage.public.s3_finance_export
+CREATE OR REPLACE STAGE dev_data_ingress.finance.s3_finance_export
     URL = 's3://your-bucket-name/finance-revenue-exports/'
     CREDENTIALS = (AWS_ROLE = 'arn:aws:iam::123456789012:role/snowflake-role')
     FILE_FORMAT = (TYPE = 'CSV' 
@@ -35,7 +35,7 @@ CREATE OR REPLACE STAGE dataeng_stage.public.s3_finance_export
 -- ============================================================================
 -- STEP 2: Verify Stage Creation
 -- ============================================================================
-DESCRIBE STAGE dataeng_stage.public.s3_finance_export;
+DESCRIBE STAGE dev_data_ingress.finance.s3_finance_export;
 
 -- ============================================================================
 -- STEP 3: Export View to S3 (Multiple Files - Recommended for Large Datasets)
@@ -43,10 +43,10 @@ DESCRIBE STAGE dataeng_stage.public.s3_finance_export;
 -- This will create multiple files if data exceeds MAX_FILE_SIZE
 -- Files will be automatically named with unique identifiers
 
-COPY INTO @dataeng_stage.public.s3_finance_export/partner_finance_mapped_
+COPY INTO @dev_data_ingress.finance.s3_finance_export/partner_finance_mapped_
 FROM (
     SELECT * 
-    FROM dataeng_stage.public.view_partner_finance_mapped
+    FROM dev_data_ingress.finance.view_partner_finance_mapped
     ORDER BY ID  -- Optional: Order data for consistency
 )
 FILE_FORMAT = (TYPE = 'CSV' 
@@ -65,10 +65,10 @@ MAX_FILE_SIZE = 5368709120;  -- 5GB per file (adjust as needed)
 -- Uncomment and modify the filename as needed
 
 /*
-COPY INTO @dataeng_stage.public.s3_finance_export/partner_finance_mapped_20251201.csv.gz
+COPY INTO @dev_data_ingress.finance.s3_finance_export/partner_finance_mapped_20251201.csv.gz
 FROM (
     SELECT * 
-    FROM dataeng_stage.public.view_partner_finance_mapped
+    FROM dev_data_ingress.finance.view_partner_finance_mapped
     ORDER BY ID
 )
 FILE_FORMAT = (TYPE = 'CSV' 
@@ -86,12 +86,12 @@ OVERWRITE = TRUE;
 -- Example: partner_finance_mapped_202512.csv.gz
 
 /*
-COPY INTO @dataeng_stage.public.s3_finance_export/partner_finance_mapped_
+COPY INTO @dev_data_ingress.finance.s3_finance_export/partner_finance_mapped_
     || TO_CHAR(DATEADD(MONTH, -1, CURRENT_DATE()), 'YYYYMM') 
     || '.csv.gz'
 FROM (
     SELECT * 
-    FROM dataeng_stage.public.view_partner_finance_mapped
+    FROM dev_data_ingress.finance.view_partner_finance_mapped
     ORDER BY ID
 )
 FILE_FORMAT = (TYPE = 'CSV' 
@@ -105,7 +105,7 @@ OVERWRITE = TRUE;
 -- ============================================================================
 -- STEP 6: Verify Export - List Files in S3 Stage
 -- ============================================================================
-LIST @dataeng_stage.public.s3_finance_export;
+LIST @dev_data_ingress.finance.s3_finance_export;
 
 -- ============================================================================
 -- STEP 7: Verify Export - Get File Details
@@ -115,7 +115,7 @@ SELECT
     METADATA$FILE_ROW_NUMBER AS row_count,
     METADATA$FILE_CONTENT_KEY AS content_key,
     METADATA$FILE_LAST_MODIFIED AS last_modified
-FROM @dataeng_stage.public.s3_finance_export
+FROM @dev_data_ingress.finance.s3_finance_export
 ORDER BY METADATA$FILE_LAST_MODIFIED DESC;
 
 -- ============================================================================
@@ -123,7 +123,7 @@ ORDER BY METADATA$FILE_LAST_MODIFIED DESC;
 -- ============================================================================
 -- Read a sample of the exported data to verify format
 SELECT *
-FROM @dataeng_stage.public.s3_finance_export
+FROM @dev_data_ingress.finance.s3_finance_export
 (FILE_FORMAT => 'CSV', PATTERN => '.*partner_finance_mapped.*')
 LIMIT 10;
 
@@ -136,12 +136,12 @@ WITH export_stats AS (
         SUM(METADATA$FILE_ROW_NUMBER) AS total_rows_exported,
         MIN(METADATA$FILE_LAST_MODIFIED) AS first_file_exported,
         MAX(METADATA$FILE_LAST_MODIFIED) AS last_file_exported
-    FROM @dataeng_stage.public.s3_finance_export
+    FROM @dev_data_ingress.finance.s3_finance_export
     WHERE METADATA$FILENAME LIKE '%partner_finance_mapped%'
 ),
 source_stats AS (
     SELECT COUNT(*) AS source_row_count
-    FROM dataeng_stage.public.view_partner_finance_mapped
+    FROM dev_data_ingress.finance.view_partner_finance_mapped
 )
 SELECT 
     'EXPORT VERIFICATION SUMMARY' AS report_section,
@@ -162,7 +162,7 @@ CROSS JOIN source_stats ss;
 -- ============================================================================
 -- Remove files older than 90 days (adjust as needed)
 /*
-REMOVE @dataeng_stage.public.s3_finance_export
+REMOVE @dev_data_ingress.finance.s3_finance_export
 PATTERN = '.*partner_finance_mapped.*'
 BEFORE = DATEADD(DAY, -90, CURRENT_DATE());
 */
@@ -180,7 +180,7 @@ BEFORE = DATEADD(DAY, -90, CURRENT_DATE());
 -- Test stage connectivity
 /*
 SELECT $1, $2, $3
-FROM @dataeng_stage.public.s3_finance_export
+FROM @dev_data_ingress.finance.s3_finance_export
 LIMIT 1;
 */
 

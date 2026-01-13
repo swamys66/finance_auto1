@@ -1,5 +1,5 @@
 -- Data Quality Checks for Merged View
--- View: dataeng_stage.public.view_partner_finance_mapped
+-- View: dev_data_ingress.finance.view_partner_finance_mapped
 -- Note: View uses LEFT JOIN with revenue aggregation as master table
 -- All revenue records are included, mapping fields are optional (may be NULL)
 
@@ -12,7 +12,7 @@ WITH revenue_stats AS (
         COUNT(DISTINCT CASE WHEN m.ID IS NOT NULL THEN r.ID END) AS mapped_revenue_records,
         COUNT(DISTINCT CASE WHEN m.ID IS NULL THEN r.ID END) AS unmapped_revenue_records
     FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-    LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+    LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
         ON r.ID = m.ID
     WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
 ),
@@ -21,7 +21,7 @@ mapping_stats AS (
         COUNT(DISTINCT m.ID) AS total_mapping_records,
         COUNT(DISTINCT CASE WHEN r.ID IS NOT NULL THEN m.ID END) AS used_mapping_records,
         COUNT(DISTINCT CASE WHEN r.ID IS NULL THEN m.ID END) AS unused_mapping_records
-    FROM dataeng_stage.public.mapping_template_raw_CURSOR m
+    FROM dev_data_ingress.finance.mapping_template_raw_CURSOR m
     LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
         ON m.ID = r.ID
         AND r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
@@ -54,7 +54,7 @@ SELECT
     r.*,
     'No matching mapping record found - mapping fields will be NULL in view' AS unmapped_reason
 FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
     ON r.ID = m.ID
 WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
     AND m.ID IS NULL
@@ -67,7 +67,7 @@ SELECT
     -- Add revenue amount aggregation if available
     -- SUM(CASE WHEN revenue_amount IS NOT NULL THEN revenue_amount ELSE 0 END) AS unmapped_revenue_amount
 FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
     ON r.ID = m.ID
 WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
     AND m.ID IS NULL;
@@ -81,7 +81,7 @@ SELECT
     'UNUSED MAPPING RECORDS' AS report_section,
     m.*,
     'No matching revenue record found for prior month' AS unused_reason
-FROM dataeng_stage.public.mapping_template_raw_CURSOR m
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR m
 LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
     ON m.ID = r.ID
     AND r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
@@ -91,7 +91,7 @@ ORDER BY m.ID;
 -- Count of unused mapping records
 SELECT 
     COUNT(*) AS unused_mapping_count
-FROM dataeng_stage.public.mapping_template_raw_CURSOR m
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR m
 LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
     ON m.ID = r.ID
     AND r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
@@ -101,7 +101,7 @@ SELECT
     r.*,
     'No matching mapping record found' AS unmapped_reason
 FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
     ON r.ID = m.ID
 WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
     AND m.ID IS NULL
@@ -112,7 +112,7 @@ SELECT
     COUNT(*) AS unmapped_revenue_count,
     SUM(CASE WHEN revenue_amount IS NOT NULL THEN revenue_amount ELSE 0 END) AS unmapped_revenue_amount
 FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
     ON r.ID = m.ID
 WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
     AND m.ID IS NULL;
@@ -133,7 +133,7 @@ SELECT
     COUNT(*) - COUNT(Oracle_Customer_Name) AS null_customer_names,
     COUNT(*) - COUNT(Oracle_GL_Account) AS null_gl_accounts,
     ROUND((COUNT(*) - COUNT(Oracle_Customer_Name)) * 100.0 / NULLIF(COUNT(*), 0), 2) AS pct_revenue_without_mapping
-FROM dataeng_stage.public.view_partner_finance_mapped;
+FROM dev_data_ingress.finance.view_partner_finance_mapped;
 
 -- ============================================================================
 -- 5. DUPLICATE CHECK IN MERGED VIEW
@@ -143,7 +143,7 @@ SELECT
     'DUPLICATE CHECK' AS report_section,
     ID,
     COUNT(*) AS occurrence_count
-FROM dataeng_stage.public.view_partner_finance_mapped
+FROM dev_data_ingress.finance.view_partner_finance_mapped
 GROUP BY ID
 HAVING COUNT(*) > 1
 ORDER BY occurrence_count DESC;
@@ -162,7 +162,7 @@ SELECT
     COUNT(*) AS total_records,
     -- Add revenue aggregation if available in the view
     -- SUM(revenue_amount) AS total_revenue
-FROM dataeng_stage.public.view_partner_finance_mapped
+FROM dev_data_ingress.finance.view_partner_finance_mapped
 GROUP BY Oracle_Customer_Name, Oracle_Invoice_Group, Oracle_GL_Account
 ORDER BY total_records DESC;
 
@@ -171,7 +171,7 @@ SELECT
     'UNMAPPED REVENUE SUMMARY' AS report_section,
     COUNT(DISTINCT ID) AS unique_unmapped_ids,
     COUNT(*) AS total_unmapped_records
-FROM dataeng_stage.public.view_partner_finance_mapped
+FROM dev_data_ingress.finance.view_partner_finance_mapped
 WHERE Oracle_Customer_Name IS NULL 
    OR Oracle_GL_Account IS NULL;
 
@@ -180,24 +180,24 @@ WHERE Oracle_Customer_Name IS NULL
 -- ============================================================================
 WITH quality_metrics AS (
     SELECT 
-        (SELECT COUNT(*) FROM dataeng_stage.public.view_partner_finance_mapped) AS total_revenue_records,
-        (SELECT COUNT(DISTINCT ID) FROM dataeng_stage.public.view_partner_finance_mapped) AS unique_revenue_ids,
+        (SELECT COUNT(*) FROM dev_data_ingress.finance.view_partner_finance_mapped) AS total_revenue_records,
+        (SELECT COUNT(DISTINCT ID) FROM dev_data_ingress.finance.view_partner_finance_mapped) AS unique_revenue_ids,
         (SELECT COUNT(DISTINCT r.ID) 
          FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
          WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))) AS total_revenue_in_source,
         (SELECT COUNT(DISTINCT r.ID) 
          FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-         LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+         LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
              ON r.ID = m.ID
          WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
            AND m.ID IS NOT NULL) AS mapped_revenue_count,
         (SELECT COUNT(*) 
-         FROM dataeng_stage.public.view_partner_finance_mapped
+         FROM dev_data_ingress.finance.view_partner_finance_mapped
          WHERE Oracle_GL_Account IS NULL) AS unmapped_revenue_count,
         (SELECT COUNT(*) 
-         FROM dataeng_stage.public.view_partner_finance_mapped
+         FROM dev_data_ingress.finance.view_partner_finance_mapped
          WHERE Oracle_Customer_Name IS NULL) AS unmapped_customer_names,
-        (SELECT COUNT(*) FROM dataeng_stage.public.mapping_template_raw_CURSOR) AS total_mapping_records
+        (SELECT COUNT(*) FROM dev_data_ingress.finance.mapping_template_raw_CURSOR) AS total_mapping_records
 )
 SELECT 
     'COMPREHENSIVE DATA QUALITY REPORT' AS report_section,
@@ -229,6 +229,6 @@ FROM quality_metrics;
 SELECT 
     'SAMPLE MAPPED DATA' AS report_section,
     *
-FROM dataeng_stage.public.view_partner_finance_mapped
+FROM dev_data_ingress.finance.view_partner_finance_mapped
 LIMIT 10;
 

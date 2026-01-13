@@ -1,5 +1,5 @@
 -- Import CSV Mapping File from S3 Bucket
--- Table: dataeng_stage.public.mapping_template_raw_CURSOR
+-- Table: dev_data_ingress.finance.mapping_template_raw_CURSOR
 
 -- ============================================================================
 -- STEP 1: Create External Stage (if not already exists)
@@ -9,7 +9,7 @@
 -- - AWS credentials (or use IAM role if configured)
 -- - File format settings
 
-CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
+CREATE OR REPLACE STAGE dev_data_ingress.finance.s3_mapping_import
     URL = 's3://your-bucket-name/mapping-files/'
     CREDENTIALS = (
         AWS_KEY_ID = 'your-aws-access-key-id'
@@ -23,7 +23,7 @@ CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
 
 -- Alternative: Use IAM Role (if configured in Snowflake)
 /*
-CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
+CREATE OR REPLACE STAGE dev_data_ingress.finance.s3_mapping_import
     URL = 's3://your-bucket-name/mapping-files/'
     CREDENTIALS = (AWS_ROLE = 'arn:aws:iam::123456789012:role/snowflake-role')
     FILE_FORMAT = (TYPE = 'CSV' 
@@ -35,15 +35,15 @@ CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
 -- ============================================================================
 -- STEP 2: Verify Stage Creation
 -- ============================================================================
-DESCRIBE STAGE dataeng_stage.public.s3_mapping_import;
+DESCRIBE STAGE dev_data_ingress.finance.s3_mapping_import;
 
 -- List files in S3 stage
-LIST @dataeng_stage.public.s3_mapping_import;
+LIST @dev_data_ingress.finance.s3_mapping_import;
 
 -- ============================================================================
 -- STEP 3: Create Table Structure
 -- ============================================================================
-CREATE OR REPLACE TABLE dataeng_stage.public.mapping_template_raw_CURSOR (
+CREATE OR REPLACE TABLE dev_data_ingress.finance.mapping_template_raw_CURSOR (
     ID VARCHAR,
     Oracle_Customer_Name VARCHAR,
     Oracle_Customer_Name_ID VARCHAR,
@@ -58,8 +58,8 @@ CREATE OR REPLACE TABLE dataeng_stage.public.mapping_template_raw_CURSOR (
 -- Load from a specific file in S3
 -- Replace 'mapping_file.csv' with your actual file name
 
-COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
-FROM @dataeng_stage.public.s3_mapping_import/mapping_file.csv
+COPY INTO dev_data_ingress.finance.mapping_template_raw_CURSOR
+FROM @dev_data_ingress.finance.s3_mapping_import/mapping_file.csv
 FILE_FORMAT = (TYPE = 'CSV' 
                SKIP_HEADER = 1 
                FIELD_OPTIONALLY_ENCLOSED_BY = '"'
@@ -75,8 +75,8 @@ PURGE = FALSE;
 -- Uncomment and modify the pattern as needed
 
 /*
-COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
-FROM @dataeng_stage.public.s3_mapping_import/
+COPY INTO dev_data_ingress.finance.mapping_template_raw_CURSOR
+FROM @dev_data_ingress.finance.s3_mapping_import/
 FILE_FORMAT = (TYPE = 'CSV' 
                SKIP_HEADER = 1 
                FIELD_OPTIONALLY_ENCLOSED_BY = '"'
@@ -93,10 +93,10 @@ PURGE = FALSE;
 -- Uncomment and modify as needed
 
 /*
-COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
+COPY INTO dev_data_ingress.finance.mapping_template_raw_CURSOR
 FROM (
     SELECT $1, $2, $3, $4, $5, $6
-    FROM @dataeng_stage.public.s3_mapping_import
+    FROM @dev_data_ingress.finance.s3_mapping_import
     (FILE_FORMAT => 'CSV', PATTERN => '.*mapping.*\\.csv')
     ORDER BY METADATA$FILE_LAST_MODIFIED DESC
     LIMIT 1
@@ -112,13 +112,13 @@ ON_ERROR = 'ABORT_STATEMENT';
 -- STEP 7: Verify Load - Check Row Count
 -- ============================================================================
 SELECT COUNT(*) AS loaded_rows 
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- ============================================================================
 -- STEP 8: Verify Load - Preview Data
 -- ============================================================================
 SELECT * 
-FROM dataeng_stage.public.mapping_template_raw_CURSOR 
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR 
 LIMIT 10;
 
 -- ============================================================================
@@ -156,7 +156,7 @@ SELECT
         THEN 'PASS'
         ELSE 'FAIL - Check data quality'
     END AS status
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- ============================================================================
 -- TROUBLESHOOTING
@@ -172,7 +172,7 @@ FROM dataeng_stage.public.mapping_template_raw_CURSOR;
 -- Test stage connectivity
 /*
 SELECT $1, $2, $3, $4, $5, $6
-FROM @dataeng_stage.public.s3_mapping_import
+FROM @dev_data_ingress.finance.s3_mapping_import
 (FILE_FORMAT => 'CSV', PATTERN => '.*mapping.*\\.csv')
 LIMIT 5;
 */
@@ -184,7 +184,7 @@ SELECT
     METADATA$FILE_ROW_NUMBER AS row_number,
     METADATA$FILE_CONTENT_KEY AS content_key,
     METADATA$FILE_LAST_MODIFIED AS last_modified
-FROM @dataeng_stage.public.s3_mapping_import
+FROM @dev_data_ingress.finance.s3_mapping_import
 (FILE_FORMAT => 'CSV')
 LIMIT 10;
 */

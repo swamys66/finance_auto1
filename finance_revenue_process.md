@@ -5,7 +5,7 @@ This document outlines the complete process for loading CSV mapping data, joinin
 
 ## Prerequisites
 - Access to Snowflake with permissions on:
-  - `dataeng_stage.public` schema (or appropriate staging schema)
+  - `dev_data_ingress.finance` schema
   - `BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION` view
 - CSV file with required columns (see Step 1)
 - S3 bucket and credentials configured (for Step 7)
@@ -27,8 +27,8 @@ Ensure your CSV file contains the following columns in this exact order:
 
 **Option A: Using Snowflake Web UI**
 1. Navigate to Snowflake Web UI
-2. Select database: `dataeng_stage` (or your target database)
-3. Select schema: `public`
+2. Select database: `dev_data_ingress`
+3. Select schema: `finance`
 4. Click "Tables" → "Create Table" → "From File"
 5. Upload your CSV file
 6. Name the table: `mapping_template_raw_CURSOR`
@@ -36,7 +36,7 @@ Ensure your CSV file contains the following columns in this exact order:
 **Option B: Using SnowSQL/CLI**
 ```sql
 -- Create table structure first
-CREATE OR REPLACE TABLE dataeng_stage.public.mapping_template_raw_CURSOR (
+CREATE OR REPLACE TABLE dev_data_ingress.finance.mapping_template_raw_CURSOR (
     ID VARCHAR,
     Oracle_Customer_Name VARCHAR,
     Oracle_Customer_Name_ID VARCHAR,
@@ -46,7 +46,7 @@ CREATE OR REPLACE TABLE dataeng_stage.public.mapping_template_raw_CURSOR (
 );
 
 -- Then use COPY INTO command
-COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
+COPY INTO dev_data_ingress.finance.mapping_template_raw_CURSOR
 FROM @your_stage_name/mapping_file.csv
 FILE_FORMAT = (TYPE = 'CSV' SKIP_HEADER = 1 FIELD_OPTIONALLY_ENCLOSED_BY = '"');
 ```
@@ -64,7 +64,7 @@ See `02_import_from_s3.sql` for the complete SQL script with all options and ver
 **Step 1: Create External Stage (if not already exists)**
 ```sql
 -- Create external stage for S3
-CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
+CREATE OR REPLACE STAGE dev_data_ingress.finance.s3_mapping_import
     URL = 's3://your-bucket-name/mapping-files/'
     CREDENTIALS = (
         AWS_KEY_ID = 'your-aws-access-key-id'
@@ -77,7 +77,7 @@ CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
 
 -- Alternative: Use IAM Role (if configured in Snowflake)
 /*
-CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
+CREATE OR REPLACE STAGE dev_data_ingress.finance.s3_mapping_import
     URL = 's3://your-bucket-name/mapping-files/'
     CREDENTIALS = (AWS_ROLE = 'arn:aws:iam::123456789012:role/snowflake-role')
     FILE_FORMAT = (TYPE = 'CSV' 
@@ -88,7 +88,7 @@ CREATE OR REPLACE STAGE dataeng_stage.public.s3_mapping_import
 
 **Step 2: Create Table Structure**
 ```sql
-CREATE OR REPLACE TABLE dataeng_stage.public.mapping_template_raw_CURSOR (
+CREATE OR REPLACE TABLE dev_data_ingress.finance.mapping_template_raw_CURSOR (
     ID VARCHAR,
     Oracle_Customer_Name VARCHAR,
     Oracle_Customer_Name_ID VARCHAR,
@@ -101,8 +101,8 @@ CREATE OR REPLACE TABLE dataeng_stage.public.mapping_template_raw_CURSOR (
 **Step 3: Load Data from S3**
 ```sql
 -- Load from specific file
-COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
-FROM @dataeng_stage.public.s3_mapping_import/mapping_file.csv
+COPY INTO dev_data_ingress.finance.mapping_template_raw_CURSOR
+FROM @dev_data_ingress.finance.s3_mapping_import/mapping_file.csv
 FILE_FORMAT = (TYPE = 'CSV' 
                SKIP_HEADER = 1 
                FIELD_OPTIONALLY_ENCLOSED_BY = '"'
@@ -111,8 +111,8 @@ ON_ERROR = 'ABORT_STATEMENT';
 
 -- Or load from pattern (e.g., latest file with timestamp)
 /*
-COPY INTO dataeng_stage.public.mapping_template_raw_CURSOR
-FROM @dataeng_stage.public.s3_mapping_import/
+COPY INTO dev_data_ingress.finance.mapping_template_raw_CURSOR
+FROM @dev_data_ingress.finance.s3_mapping_import/
 FILE_FORMAT = (TYPE = 'CSV' 
                SKIP_HEADER = 1 
                FIELD_OPTIONALLY_ENCLOSED_BY = '"')
@@ -125,11 +125,11 @@ ON_ERROR = 'ABORT_STATEMENT';
 ```sql
 -- Check row count
 SELECT COUNT(*) AS loaded_rows 
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- Preview data
 SELECT * 
-FROM dataeng_stage.public.mapping_template_raw_CURSOR 
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR 
 LIMIT 10;
 ```
 
@@ -160,11 +160,11 @@ See `11_dbt_import_from_s3.sql` and `11_dbt_macros.sql` for implementation detai
 
 ```sql
 -- Verify table was created with correct structure
-DESCRIBE TABLE dataeng_stage.public.mapping_template_raw_CURSOR;
+DESCRIBE TABLE dev_data_ingress.finance.mapping_template_raw_CURSOR;
 
 -- Check row count
 SELECT COUNT(*) AS total_rows 
-FROM dataeng_stage.public.mapping_template_raw_CURSOR;
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR;
 ```
 
 ---
@@ -190,7 +190,7 @@ SELECT
     'Total Records' AS check_type,
     COUNT(*) AS check_value,
     NULL AS check_status
-FROM dataeng_stage.public.mapping_template_raw_CURSOR
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR
 
 UNION ALL
 
@@ -201,7 +201,7 @@ SELECT
         WHEN COUNT(DISTINCT ID) = COUNT(*) THEN 'PASS'
         ELSE 'FAIL - Duplicates found'
     END AS check_status
-FROM dataeng_stage.public.mapping_template_raw_CURSOR
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR
 
 UNION ALL
 
@@ -212,7 +212,7 @@ SELECT
         WHEN COUNT(*) = 0 THEN 'PASS'
         ELSE 'FAIL - NULL IDs found'
     END AS check_status
-FROM dataeng_stage.public.mapping_template_raw_CURSOR
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR
 WHERE ID IS NULL;
 ```
 
@@ -229,30 +229,24 @@ The process should filter for the prior month. For example:
 
 See `04_create_mapped_view.sql` for the complete view creation script.
 
-**Important:** The view uses a LEFT JOIN with `BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION` as the master table. This ensures:
-- **All revenue records** from the prior month are included in the view
-- **Mapping fields** are populated when a mapping exists for the revenue record
-- **Mapping fields are NULL** when no mapping exists (revenue records are still included)
-
 ```sql
 -- Create view with dynamic prior month calculation
--- Master: BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION
--- LEFT JOIN to mapping_template_raw_CURSOR to include all revenue records
-CREATE OR REPLACE VIEW dataeng_stage.public.view_partner_finance_mapped AS
+CREATE OR REPLACE VIEW dev_data_ingress.finance.view_partner_finance_mapped AS
 SELECT 
-    -- All fields from revenue aggregation view (master)
-    r.*,
-    
-    -- Mapping fields from mapping_template_raw_CURSOR (may be NULL if no mapping)
+    -- Mapping fields
+    m.ID,
     m.Oracle_Customer_Name,
     m.Oracle_Customer_Name_ID,
     m.Oracle_Invoice_Group,
     m.Oracle_Invoice_Name,
-    m.Oracle_GL_Account
+    m.Oracle_GL_Account,
     
-FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
-    ON r.ID = m.ID
+    -- Revenue aggregation fields
+    r.*
+    
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR m
+INNER JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
+    ON m.ID = r.ID
 WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
     -- Alternative: Use specific date
     -- WHERE r.data_month = '2025-12-01'
@@ -268,11 +262,11 @@ WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
 See `05_data_quality_checks_merged.sql` for complete validation queries.
 
 **Key Checks:**
-1. **Revenue Coverage**: What percentage of revenue records were successfully mapped
-2. **Unmapped Revenue**: Which revenue records did not get a mapping (mapping fields will be NULL)
-3. **Mapping Usage**: What percentage of mapping records were used (some mappings may not have revenue)
-4. **Unused Mappings**: Which mapping records did not find a matching revenue record
-5. **Data Completeness**: Check for NULL values in mapping fields (expected for unmapped revenue)
+1. **Mapping Coverage**: What percentage of mapping records successfully joined
+2. **Unmapped Records**: Which mapping records did not find a match
+3. **Revenue Coverage**: What percentage of revenue records were mapped
+4. **Unmapped Revenue**: Which revenue records did not get mapped
+5. **Data Completeness**: Check for NULL values in critical joined fields
 
 ### 5.2 Mapping Summary Query
 
@@ -283,7 +277,7 @@ WITH mapping_stats AS (
         COUNT(DISTINCT m.ID) AS total_mapping_records,
         COUNT(DISTINCT CASE WHEN r.ID IS NOT NULL THEN m.ID END) AS mapped_records,
         COUNT(DISTINCT CASE WHEN r.ID IS NULL THEN m.ID END) AS unmapped_mapping_records
-    FROM dataeng_stage.public.mapping_template_raw_CURSOR m
+    FROM dev_data_ingress.finance.mapping_template_raw_CURSOR m
     LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
         ON m.ID = r.ID
         AND r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
@@ -294,7 +288,7 @@ revenue_stats AS (
         COUNT(DISTINCT CASE WHEN m.ID IS NOT NULL THEN r.ID END) AS mapped_revenue_records,
         COUNT(DISTINCT CASE WHEN m.ID IS NULL THEN r.ID END) AS unmapped_revenue_records
     FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-    LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
+    LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
         ON r.ID = m.ID
     WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
 )
@@ -314,27 +308,25 @@ CROSS JOIN revenue_stats rs;
 ### 5.3 Identify Unmapped Records
 
 ```sql
--- Unmapped revenue records (revenue exists but no mapping found)
--- These records will appear in the view with NULL mapping fields
-SELECT 
-    r.*,
-    'No matching mapping record found' AS unmapped_reason
-FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
-LEFT JOIN dataeng_stage.public.mapping_template_raw_CURSOR m
-    ON r.ID = m.ID
-WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
-    AND m.ID IS NULL;
-
--- Unused mapping records (mapping exists but no revenue for prior month)
--- These mappings are not used in the current view
+-- Unmapped mapping records
 SELECT 
     m.*,
-    'No matching revenue record found for prior month' AS unmapped_reason
-FROM dataeng_stage.public.mapping_template_raw_CURSOR m
+    'No matching revenue record found' AS unmapped_reason
+FROM dev_data_ingress.finance.mapping_template_raw_CURSOR m
 LEFT JOIN BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
     ON m.ID = r.ID
     AND r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
 WHERE r.ID IS NULL;
+
+-- Unmapped revenue records
+SELECT 
+    r.*,
+    'No matching mapping record found' AS unmapped_reason
+FROM BI.PARTNER_FINANCE.VIEW_PARTNER_FINANCE_REVENUE_AGGREGATION r
+LEFT JOIN dev_data_ingress.finance.mapping_template_raw_CURSOR m
+    ON r.ID = m.ID
+WHERE r.data_month = DATE_TRUNC('MONTH', DATEADD(MONTH, -1, CURRENT_DATE()))
+    AND m.ID IS NULL;
 ```
 
 ---
@@ -350,7 +342,7 @@ WHERE r.ID IS NULL;
 
 ```sql
 -- Create external stage for S3
-CREATE OR REPLACE STAGE dataeng_stage.public.s3_finance_export
+CREATE OR REPLACE STAGE dev_data_ingress.finance.s3_finance_export
     URL = 's3://your-bucket-name/finance-revenue-exports/'
     CREDENTIALS = (
         AWS_KEY_ID = 'your-aws-key-id'
@@ -363,10 +355,10 @@ CREATE OR REPLACE STAGE dataeng_stage.public.s3_finance_export
 
 ```sql
 -- Export the mapped view to S3
-COPY INTO @dataeng_stage.public.s3_finance_export/partner_finance_mapped_
+COPY INTO @dev_data_ingress.finance.s3_finance_export/partner_finance_mapped_
 FROM (
     SELECT * 
-    FROM dataeng_stage.public.view_partner_finance_mapped
+    FROM dev_data_ingress.finance.view_partner_finance_mapped
 )
 FILE_FORMAT = (TYPE = 'CSV' COMPRESSION = 'GZIP' FIELD_OPTIONALLY_ENCLOSED_BY = '"' HEADER = TRUE)
 OVERWRITE = TRUE
@@ -378,14 +370,14 @@ MAX_FILE_SIZE = 5368709120; -- 5GB per file
 
 ```sql
 -- List files in S3 stage
-LIST @dataeng_stage.public.s3_finance_export;
+LIST @dev_data_ingress.finance.s3_finance_export;
 
 -- Verify file count and sizes
 SELECT 
     METADATA$FILENAME AS file_name,
     METADATA$FILE_ROW_NUMBER AS row_count,
     METADATA$FILE_CONTENT_KEY AS content_key
-FROM @dataeng_stage.public.s3_finance_export
+FROM @dev_data_ingress.finance.s3_finance_export
 ORDER BY METADATA$FILENAME;
 ```
 
@@ -393,10 +385,10 @@ ORDER BY METADATA$FILENAME;
 
 ```sql
 -- Export as single compressed file
-COPY INTO @dataeng_stage.public.s3_finance_export/partner_finance_mapped_YYYYMMDD.csv.gz
+COPY INTO @dev_data_ingress.finance.s3_finance_export/partner_finance_mapped_YYYYMMDD.csv.gz
 FROM (
     SELECT * 
-    FROM dataeng_stage.public.view_partner_finance_mapped
+    FROM dev_data_ingress.finance.view_partner_finance_mapped
 )
 FILE_FORMAT = (TYPE = 'CSV' COMPRESSION = 'GZIP' FIELD_OPTIONALLY_ENCLOSED_BY = '"' HEADER = TRUE)
 SINGLE = TRUE

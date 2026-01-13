@@ -1,6 +1,6 @@
 # Finance revenue run book
 
-1. load an csv file in to snowflake schema for example: dataeng_stage.public
+1. load an csv file in to snowflake schema for example: dev_data_ingress.finance
 2. Following columns should be present in the order below from the imported CSV file in step 1
     a. ID VARCHAR,	
     b. Oracle_Customer_Name VARCHAR

@@ -31,8 +31,8 @@ SNOWFLAKE_CONFIG = {
     'password': os.getenv('SNOWFLAKE_PASSWORD'),
     'account': os.getenv('SNOWFLAKE_ACCOUNT'),
     'warehouse': os.getenv('SNOWFLAKE_WAREHOUSE', 'COMPUTE_WH'),
-    'database': 'dataeng_stage',
-    'schema': 'public'
+    'database': 'dev_data_ingress',
+    'schema': 'finance'
 }
 
 # SQL file paths
@@ -112,7 +112,7 @@ def validate_import(conn) -> bool:
     """Validate that import was successful."""
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT COUNT(*) FROM dataeng_stage.public.mapping_template_raw_CURSOR")
+        cursor.execute("SELECT COUNT(*) FROM dev_data_ingress.finance.mapping_template_raw_CURSOR")
         row_count = cursor.fetchone()[0]
         
         if row_count == 0:
@@ -129,7 +129,7 @@ def validate_view(conn) -> bool:
     """Validate that view was created successfully."""
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT COUNT(*) FROM dataeng_stage.public.view_partner_finance_mapped")
+        cursor.execute("SELECT COUNT(*) FROM dev_data_ingress.finance.view_partner_finance_mapped")
         row_count = cursor.fetchone()[0]
         
         if row_count == 0:
