@@ -5,7 +5,6 @@
         database='dataeng_stage',
         tags=['finance', 'revenue', 'mapping', 's3_import'],
         pre_hook=[
-            "{{ create_s3_mapping_stage() }}",
             "{{ truncate_mapping_table() }}",
             "{{ load_from_s3_pattern(var('s3_mapping_stage', 'dev_data_ingress.finance.s3_test_finance_automation_input'), var('s3_mapping_file_pattern', '.*mapping.*\\.csv'), this) }}"
         ],

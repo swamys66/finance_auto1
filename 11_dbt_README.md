@@ -27,22 +27,21 @@ vars:
 
 ### 2. Stage Configuration
 
-**The stage `dev_data_ingress.finance.s3_test_finance_automation_input` is pre-configured and already exists.**
+**The stage `dev_data_ingress.finance.s3_test_finance_automation_input` must be pre-configured and already exist.**
 
-The stage should already have:
-- S3 bucket URL configured
+**Prerequisites:**
+- Stage must be created as a one-time setup (not part of dbt process)
+- Stage should have S3 bucket URL configured
 - AWS credentials configured (via IAM role or key/secret)
 - File format settings configured
 
-**If you need to verify the stage:**
+**To verify the stage exists:**
 ```sql
 DESCRIBE STAGE dev_data_ingress.finance.s3_test_finance_automation_input;
 LIST @dev_data_ingress.finance.s3_test_finance_automation_input;
 ```
 
-**If you need to create a new stage (not recommended if using existing one):**
-- The macro will verify the stage exists
-- If you need to create it, uncomment the creation code in the macro
+**Note:** Stage creation is not included in the dbt macros as it's a one-time infrastructure setup. If the stage doesn't exist, the dbt run will fail with a clear error message.
 
 ### 3. Add Macros to Your Project
 
@@ -84,8 +83,8 @@ dbt docs serve
 ## How It Works
 
 1. **Pre-hooks**:
-   - `create_s3_mapping_stage()`: Creates/verifies the S3 external stage
    - `truncate_mapping_table()`: Clears existing data before load
+   - `load_from_s3_pattern()`: Loads data from S3 using the pre-configured stage
 
 2. **Model Execution**:
    - Reads CSV files from S3 using the external stage
