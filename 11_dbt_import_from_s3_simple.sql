@@ -4,9 +4,6 @@
         schema='public',
         database='dataeng_stage',
         tags=['finance', 'revenue', 'mapping', 's3_import'],
-        pre_hook=[
-            "{{ create_s3_mapping_stage() }}"
-        ],
         post_hook=[
             "{{ validate_import() }}"
         ]
@@ -16,8 +13,10 @@
 -- DBT Model: Import CSV Mapping File from S3 Bucket (Simple Version)
 -- Alternative approach: Use this if the pre-hook COPY INTO approach doesn't work
 -- 
--- This version requires running COPY INTO manually first, then this model
--- can be used for data quality checks and transformations
+-- This version requires running COPY INTO manually first (using 02_import_from_s3.sql),
+-- then this model can be used for data quality checks and transformations
+-- 
+-- Note: Stage creation is a one-time setup and not part of this dbt process
 
 SELECT
     ID::VARCHAR,
