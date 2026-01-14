@@ -48,7 +48,24 @@
 
 {% macro load_from_s3_pattern(stage_name, file_pattern, table_name) %}
     {# Generic macro to load data from S3 using pattern matching #}
+    {# Creates table if it doesn't exist, then executes COPY INTO #}
     
+    {# Step 1: Create table if it doesn't exist #}
+    {% set create_table_sql %}
+    CREATE TABLE IF NOT EXISTS {{ table_name }} (
+        ID VARCHAR,
+        Oracle_Customer_Name VARCHAR,
+        Oracle_Customer_Name_ID VARCHAR,
+        Oracle_Invoice_Group VARCHAR,
+        Oracle_Invoice_Name VARCHAR,
+        Oracle_GL_Account VARCHAR
+    );
+    {% endset %}
+    
+    {% do run_query(create_table_sql) %}
+    {{ log("Table created/verified: " ~ table_name, info=True) }}
+    
+    {# Step 2: Execute COPY INTO #}
     {% set copy_sql %}
     COPY INTO {{ table_name }}
     (
@@ -77,7 +94,24 @@
 
 {% macro load_from_s3_file(stage_name, file_name, table_name) %}
     {# Generic macro to load data from S3 using specific file name #}
+    {# Creates table if it doesn't exist, then executes COPY INTO #}
     
+    {# Step 1: Create table if it doesn't exist #}
+    {% set create_table_sql %}
+    CREATE TABLE IF NOT EXISTS {{ table_name }} (
+        ID VARCHAR,
+        Oracle_Customer_Name VARCHAR,
+        Oracle_Customer_Name_ID VARCHAR,
+        Oracle_Invoice_Group VARCHAR,
+        Oracle_Invoice_Name VARCHAR,
+        Oracle_GL_Account VARCHAR
+    );
+    {% endset %}
+    
+    {% do run_query(create_table_sql) %}
+    {{ log("Table created/verified: " ~ table_name, info=True) }}
+    
+    {# Step 2: Execute COPY INTO #}
     {% set copy_sql %}
     COPY INTO {{ table_name }}
     (
