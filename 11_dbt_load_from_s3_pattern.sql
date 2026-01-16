@@ -23,8 +23,16 @@
     #}
     
     {# Step 1: Create table if it doesn't exist #}
+    {# Handle table_name - could be string or Relation object #}
+    {% if table_name is string %}
+        {% set table_name_str = table_name %}
+    {% else %}
+        {# If it's a Relation object, get the fully qualified name #}
+        {% set table_name_str = table_name.include(database=true, schema=true) %}
+    {% endif %}
+    
     {% set create_table_sql %}
-    CREATE TABLE IF NOT EXISTS {{ table_name }} (
+    CREATE TABLE IF NOT EXISTS {{ table_name_str }} (
         ID VARCHAR,
         Oracle_Customer_Name VARCHAR,
         Oracle_Customer_Name_ID VARCHAR,
@@ -35,11 +43,11 @@
     {% endset %}
     
     {% do run_query(create_table_sql) %}
-    {{ log("Table created/verified: " ~ table_name, info=True) }}
+    {{ log("Table created/verified: " ~ table_name_str, info=True) }}
     
     {# Step 2: Execute COPY INTO #}
     {% set copy_sql %}
-    COPY INTO {{ table_name }}
+    COPY INTO {{ table_name_str }}
     (
         ID,
         Oracle_Customer_Name,
@@ -60,6 +68,6 @@
     {% endset %}
     
     {% do run_query(copy_sql) %}
-    {{ log("Data loaded from S3 pattern: " ~ file_pattern ~ " into " ~ table_name, info=True) }}
+    {{ log("Data loaded from S3 pattern: " ~ file_pattern ~ " into " ~ table_name_str, info=True) }}
 {% endmacro %}
 
