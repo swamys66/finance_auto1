@@ -8,43 +8,43 @@
 -- 4. Single file export
 --
 -- Usage in dbt models:
---   post_hook: ["{{ export_to_s3('stage_name', 'file_prefix', 'table_name', 'order_column', months_back) }}"]
+--   post_hook: ["{{ export_to_s3('stage_name', 'file_prefix', 'table_name', 'order_column', 'data_month_column') }}"]
 --
 -- Example:
---   {{ export_to_s3('dev_data_ingress.finance.s3_test_finance_automation_output', 'partner_finance_mapped', 'dev_data_ingress.dbt_sswamynathan_finance._2_join_revenue_with_mapping', 'ID', -4) }}
+--   {{ export_to_s3('dev_data_ingress.finance.s3_test_finance_automation_output', 'partner_finance_mapped', 'dev_data_ingress.dbt_sswamynathan_finance._2_join_revenue_with_mapping', 'ID', 'data_month') }}
 
-{% macro export_to_s3(stage_name, file_prefix, source_table, order_by_column='ID', months_back=-4, overwrite=true) %}
+{% macro export_to_s3(stage_name, file_prefix, source_table, order_by_column='ID', data_month_column='data_month', overwrite=true) %}
     {# 
-    Macro to export data from a table/view to S3 using COPY INTO with dynamic timestamp
+    Macro to export data from a table/view to S3 using COPY INTO with dynamic timestamp from data_month field
     
     Parameters:
     - stage_name: Full stage name (e.g., 'dev_data_ingress.finance.s3_test_finance_automation_output')
     - file_prefix: File name prefix (e.g., 'partner_finance_mapped')
     - source_table: Full table/view name to export from
     - order_by_column: Column to order by (default: 'ID')
-    - months_back: Number of months back for timestamp (default: -4 for 4 months prior)
+    - data_month_column: Column name containing the data_month value (default: 'data_month')
     - overwrite: Whether to overwrite existing files (default: true)
     
     Output filename format: {file_prefix}_YYYYMM.csv
-    Example: partner_finance_mapped_202512.csv
+    Example: partner_finance_mapped_202512.csv (based on actual data_month in the table)
     #}
     
-    {# Generate dynamic filename with timestamp #}
-    {% set timestamp_sql %}
-    SELECT TO_CHAR(DATEADD(MONTH, {{ months_back }}, CURRENT_DATE()), 'YYYYMM') AS month_str
+    {# Extract data_month from source table dynamically #}
+    {% set data_month_sql %}
+    SELECT DISTINCT TO_CHAR({{ data_month_column }}, 'YYYYMM') AS month_str
+    FROM {{ source_table }}
+    WHERE {{ data_month_column }} IS NOT NULL
+    ORDER BY month_str DESC
+    LIMIT 1
     {% endset %}
-    
-    {% set timestamp_result = run_query(timestamp_sql) %}
-    {% if execute %}
-        {% set month_str = timestamp_result.columns[0].values()[0] %}
-        {% set file_name = file_prefix ~ '_' ~ month_str ~ '.csv' %}
-    {% else %}
-        {% set file_name = file_prefix ~ '_' ~ 'YYYYMM' ~ '.csv' %}
-    {% endif %}
     
     {% set export_sql %}
     COPY INTO @{{ stage_name }}/{{ file_prefix }}_
-        || TO_CHAR(DATEADD(MONTH, {{ months_back }}, CURRENT_DATE()), 'YYYYMM') 
+        || (SELECT DISTINCT TO_CHAR({{ data_month_column }}, 'YYYYMM')
+            FROM {{ source_table }}
+            WHERE {{ data_month_column }} IS NOT NULL
+            ORDER BY TO_CHAR({{ data_month_column }}, 'YYYYMM') DESC
+            LIMIT 1)
         || '.csv'
     FROM (
         SELECT * 
@@ -64,6 +64,22 @@
     {% endset %}
     
     {% do run_query(export_sql) %}
-    {{ log("Data exported to S3: " ~ file_prefix ~ "_[timestamp].csv from " ~ source_table, info=True) }}
+    
+    {# Log the actual data_month used for filename #}
+    {% set log_sql %}
+    SELECT DISTINCT TO_CHAR({{ data_month_column }}, 'YYYYMM') AS month_str
+    FROM {{ source_table }}
+    WHERE {{ data_month_column }} IS NOT NULL
+    ORDER BY month_str DESC
+    LIMIT 1
+    {% endset %}
+    
+    {% set log_result = run_query(log_sql) %}
+    {% if execute %}
+        {% set month_str = log_result.columns[0].values()[0] %}
+        {{ log("Data exported to S3: " ~ file_prefix ~ "_" ~ month_str ~ ".csv from " ~ source_table, info=True) }}
+    {% else %}
+        {{ log("Data exported to S3: " ~ file_prefix ~ "_[YYYYMM].csv from " ~ source_table, info=True) }}
+    {% endif %}
 {% endmacro %}
 
