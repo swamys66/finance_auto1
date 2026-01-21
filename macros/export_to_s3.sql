@@ -38,14 +38,17 @@
     LIMIT 1
     {% endset %}
     
+    {% set data_month_result = run_query(data_month_sql) %}
+    {% if execute %}
+        {% set month_str = data_month_result.columns[0].values()[0] %}
+        {% set file_name = file_prefix ~ '_' ~ month_str ~ '.csv' %}
+    {% else %}
+        {% set file_name = file_prefix ~ '_YYYYMM.csv' %}
+        {% set month_str = 'YYYYMM' %}
+    {% endif %}
+    
     {% set export_sql %}
-    COPY INTO @{{ stage_name }}/{{ file_prefix }}_
-        || (SELECT DISTINCT TO_CHAR({{ data_month_column }}, 'YYYYMM')
-            FROM {{ source_table }}
-            WHERE {{ data_month_column }} IS NOT NULL
-            ORDER BY TO_CHAR({{ data_month_column }}, 'YYYYMM') DESC
-            LIMIT 1)
-        || '.csv'
+    COPY INTO @{{ stage_name }}/{{ file_name }}
     FROM (
         SELECT * 
         FROM {{ source_table }}
@@ -64,22 +67,6 @@
     {% endset %}
     
     {% do run_query(export_sql) %}
-    
-    {# Log the actual data_month used for filename #}
-    {% set log_sql %}
-    SELECT DISTINCT TO_CHAR({{ data_month_column }}, 'YYYYMM') AS month_str
-    FROM {{ source_table }}
-    WHERE {{ data_month_column }} IS NOT NULL
-    ORDER BY month_str DESC
-    LIMIT 1
-    {% endset %}
-    
-    {% set log_result = run_query(log_sql) %}
-    {% if execute %}
-        {% set month_str = log_result.columns[0].values()[0] %}
-        {{ log("Data exported to S3: " ~ file_prefix ~ "_" ~ month_str ~ ".csv from " ~ source_table, info=True) }}
-    {% else %}
-        {{ log("Data exported to S3: " ~ file_prefix ~ "_[YYYYMM].csv from " ~ source_table, info=True) }}
-    {% endif %}
+    {{ log("Data exported to S3: " ~ file_name ~ " from " ~ source_table ~ " (data_month: " ~ month_str ~ ")", info=True) }}
 {% endmacro %}
 
