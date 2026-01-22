@@ -56,37 +56,34 @@
     SELECT * FROM {{ source_table }} LIMIT 0
     {% endset %}
     
+    {# Get column names from INFORMATION_SCHEMA (works for both tables and views) #}
+    {% set get_columns_sql %}
+    SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_CATALOG = UPPER('{{ database_name }}')
+      AND TABLE_SCHEMA = UPPER('{{ schema_name }}')
+      AND TABLE_NAME = UPPER('{{ table_name_only }}')
+    {% endset %}
+    
     {% set cols_result = run_query(get_columns_sql) %}
     {% set col_names = '' %}
     {% set col_array = [] %}
     
     {% if execute and cols_result %}
-        {# Get column names from query result metadata #}
-        {% set column_names = cols_result.column_names %}
-        {% if column_names %}
-            {% set col_array = column_names %}
-            {% set col_names = column_names | join(',') %}
-            {{ log("Found " ~ column_names|length ~ " columns from query metadata", info=True) }}
-        {% else %}
-            {# Fallback: Try INFORMATION_SCHEMA #}
-            {% set get_columns_sql2 %}
-            SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list
-            FROM INFORMATION_SCHEMA.COLUMNS
-            WHERE TABLE_CATALOG = UPPER('{{ database_name }}')
-              AND TABLE_SCHEMA = UPPER('{{ schema_name }}')
-              AND TABLE_NAME = UPPER('{{ table_name_only }}')
-            {% endset %}
-            {% set cols_result2 = run_query(get_columns_sql2) %}
-            {% if execute and cols_result2.columns[0].values() and cols_result2.columns[0].values()[0] %}
-                {% set col_names = cols_result2.columns[0].values()[0] %}
+        {% if cols_result.columns and cols_result.columns[0] and cols_result.columns[0].values() %}
+            {% set first_value = cols_result.columns[0].values()[0] %}
+            {% if first_value %}
+                {% set col_names = first_value %}
                 {% set col_array = col_names.split(',') | map('trim') %}
-                {{ log("Found columns from INFORMATION_SCHEMA: " ~ col_names, info=True) }}
+                {{ log("Found " ~ col_array|length ~ " columns: " ~ col_names, info=True) }}
             {% else %}
-                {{ log("WARNING: Cannot get column names for " ~ source_table, info=True) }}
+                {{ log("WARNING: Column list is empty for " ~ source_table, info=True) }}
             {% endif %}
+        {% else %}
+            {{ log("WARNING: Cannot access column results for " ~ source_table, info=True) }}
         {% endif %}
     {% else %}
-        {{ log("WARNING: Query execution failed for column detection", info=True) }}
+        {{ log("WARNING: Query execution failed for column detection on " ~ source_table, info=True) }}
     {% endif %}
     
     {% if col_array and col_array|length > 0 %}
