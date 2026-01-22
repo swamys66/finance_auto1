@@ -49,14 +49,28 @@
     
     {# Remove existing files matching the pattern if overwrite is true #}
     {% if overwrite %}
+        {# First, list files to see what exists #}
+        {% set list_sql %}
+        LIST @{{ stage_name }}/
+        PATTERN = '{{ file_prefix }}_{{ month_str }}.*'
+        {% endset %}
+        
         {# Use pattern matching to remove any files with the same prefix and month #}
         {% set remove_pattern = file_prefix ~ '_' ~ month_str ~ '.*' %}
         {% set remove_sql %}
         REMOVE @{{ stage_name }}/
         PATTERN = '{{ remove_pattern }}'
         {% endset %}
+        
+        {# Execute remove (will not error if file doesn't exist) #}
         {% do run_query(remove_sql) %}
-        {{ log("Removed existing files matching pattern: " ~ remove_pattern, info=True) }}
+        {{ log("Attempted to remove existing files matching pattern: " ~ remove_pattern, info=True) }}
+        
+        {# Small delay to ensure removal completes (optional, but helps) #}
+        {% set delay_sql %}
+        SELECT SYSTEM$WAIT(1)
+        {% endset %}
+        {% do run_query(delay_sql) %}
     {% endif %}
     
     {# Export to S3 #}
