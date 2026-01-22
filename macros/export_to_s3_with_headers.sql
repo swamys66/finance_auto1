@@ -85,8 +85,10 @@
               AND TABLE_NAME = '{{ table_name_only }}'
             {% endset %}
             {% set cols_result = run_query(get_columns_sql) %}
-            {% if execute and cols_result and cols_result.columns and cols_result.columns[0] and cols_result.columns[0].values() %}
-                {% set first_value = cols_result.columns[0].values()[0] %}
+            {% if execute and cols_result and cols_result.columns and cols_result.columns[0] %}
+                {% set col_values = cols_result.columns[0].values() %}
+                {% if col_values and col_values[0] %}
+                    {% set first_value = col_values[0] %}
                 {% if first_value %}
                     {% set col_names = first_value %}
                     {% set col_array = col_names.split(',') | map('trim') %}
