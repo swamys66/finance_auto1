@@ -108,7 +108,7 @@
         {# Create header select with quoted uppercase column names (as string literals) #}
         {% set header_select_parts = [] %}
         {% for col in col_array %}
-            {% set quoted_col = "'" ~ col.upper() ~ "'" %}
+            {% set quoted_col = "'" ~ (col | upper) ~ "'" %}
             {% set _ = header_select_parts.append(quoted_col) %}
         {% endfor %}
         {% set header_select = header_select_parts | join(',') %}
