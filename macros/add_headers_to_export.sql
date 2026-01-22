@@ -34,7 +34,7 @@
     {% set create_format_sql %}
     CREATE OR REPLACE FILE FORMAT {{ file_format_name }}
         TYPE = 'CSV'
-        FIELD_OPTIONALLY_ENCLOSED_BY = '\x22'
+        FIELD_OPTIONALLY_ENCLOSED_BY = '"'
         NULL_IF = ('NULL', 'null', '')
     {% endset %}
     
@@ -44,7 +44,7 @@
     {# Step 2: Create header table #}
     {% set create_header_sql %}
     CREATE OR REPLACE TEMPORARY TABLE temp_header AS
-    SELECT '{{ header_row }}' AS header_line;
+    SELECT '{{ header_row | replace("'", "''") }}' AS header_line
     {% endset %}
     
     {% do run_query(create_header_sql) %}
@@ -59,7 +59,7 @@
     {% set create_data_table_sql %}
     CREATE OR REPLACE TEMPORARY TABLE temp_export_data (
         {{ col_defs | join(', ') }}
-    );
+    )
     {% endset %}
     
     {% do run_query(create_data_table_sql) %}
@@ -69,7 +69,7 @@
     {% set copy_into_sql %}
     COPY INTO temp_export_data
     FROM @{{ stage_name }}/{{ file_name }}
-    FILE_FORMAT = (FORMAT_NAME = '{{ file_format_name }}');
+    FILE_FORMAT = (FORMAT_NAME = '{{ file_format_name }}')
     {% endset %}
     
     {% do run_query(copy_into_sql) %}
@@ -84,7 +84,7 @@
     {% set create_header_split_sql %}
     CREATE OR REPLACE TEMPORARY TABLE temp_header_split AS
     SELECT {{ split_parts | join(', ') }}
-    FROM temp_header;
+    FROM temp_header
     {% endset %}
     
     {% do run_query(create_header_split_sql) %}
@@ -95,7 +95,7 @@
     COPY INTO @{{ stage_name }}/{{ new_file_name }}
     FROM (SELECT * FROM temp_header_split UNION ALL SELECT * FROM temp_export_data)
     FILE_FORMAT = (FORMAT_NAME = '{{ file_format_name }}' ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE)
-    SINGLE = TRUE OVERWRITE = TRUE;
+    SINGLE = TRUE OVERWRITE = TRUE
     {% endset %}
     
     {% do run_query(export_sql) %}
