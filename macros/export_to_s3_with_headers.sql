@@ -47,17 +47,31 @@
     
     {# Get column names for header row #}
     {% set table_parts = source_table.split('.') %}
+    {% set database_name = table_parts[0] %}
+    {% set schema_name = table_parts[1] %}
+    {% set table_name_only = table_parts[2] %}
+    
+    {# Try to get column names from INFORMATION_SCHEMA #}
     {% set get_columns_sql %}
     SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list
     FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_CATALOG = UPPER('{{ table_parts[0] }}')
-      AND TABLE_SCHEMA = UPPER('{{ table_parts[1] }}')
-      AND TABLE_NAME = UPPER('{{ table_parts[2] }}')
+    WHERE TABLE_CATALOG = UPPER('{{ database_name }}')
+      AND TABLE_SCHEMA = UPPER('{{ schema_name }}')
+      AND TABLE_NAME = UPPER('{{ table_name_only }}')
     {% endset %}
     
     {% set cols_result = run_query(get_columns_sql) %}
-    {% if execute and cols_result.columns[0].values()[0] %}
-        {% set col_names = cols_result.columns[0].values()[0] %}
+    {% set col_names = '' %}
+    {% if execute %}
+        {% if cols_result.columns[0].values() and cols_result.columns[0].values()[0] %}
+            {% set col_names = cols_result.columns[0].values()[0] %}
+            {{ log("Found columns: " ~ col_names, info=True) }}
+        {% else %}
+            {{ log("WARNING: No columns found in INFORMATION_SCHEMA for " ~ source_table, info=True) }}
+        {% endif %}
+    {% endif %}
+    
+    {% if col_names %}
         {% set col_array = col_names.split(',') | map('trim') %}
         {# Create header select with quoted uppercase column names #}
         {% set header_select = col_array | map('upper') | map('quote') | join(',') %}
@@ -67,9 +81,11 @@
             {% set _ = data_select_parts.append(col ~ '::VARCHAR') %}
         {% endfor %}
         {% set data_select = data_select_parts | join(',') %}
-        {% set header_row = 'true' %}
+        {% set has_headers = true %}
+        {{ log("Header row will be included with " ~ col_array|length ~ " columns", info=True) }}
     {% else %}
-        {% set header_row = '' %}
+        {% set has_headers = false %}
+        {{ log("WARNING: Cannot get column names, exporting without headers", info=True) }}
     {% endif %}
     
     {# Remove existing file if overwrite is true #}
@@ -82,7 +98,7 @@
     {% endif %}
     
     {# Export to S3 with headers #}
-    {% if header_row %}
+    {% if has_headers %}
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
@@ -134,6 +150,6 @@
     {% endif %}
     
     {% do run_query(export_sql) %}
-    {{ log("Data exported to S3: " ~ file_name ~ " from " ~ source_table ~ " (data_month: " ~ month_str ~ ")" ~ (" with headers" if header_row else " without headers"), info=True) }}
+    {{ log("Data exported to S3: " ~ file_name ~ " from " ~ source_table ~ " (data_month: " ~ month_str ~ ")" ~ (" with headers" if has_headers else " without headers"), info=True) }}
 {% endmacro %}
 
