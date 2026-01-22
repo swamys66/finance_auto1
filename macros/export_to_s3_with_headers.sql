@@ -58,7 +58,16 @@
     {% set cols_result = run_query(get_columns_sql) %}
     {% if execute and cols_result.columns[0].values()[0] %}
         {% set col_names = cols_result.columns[0].values()[0] %}
-        {% set header_row = col_names.split(',') | map('trim') | join("','") %}
+        {% set col_array = col_names.split(',') | map('trim') %}
+        {# Create header select with quoted uppercase column names #}
+        {% set header_select = col_array | map('upper') | map('quote') | join(',') %}
+        {# Create data select with original column names cast to VARCHAR #}
+        {% set data_select_parts = [] %}
+        {% for col in col_array %}
+            {% set _ = data_select_parts.append(col ~ '::VARCHAR') %}
+        {% endfor %}
+        {% set data_select = data_select_parts | join(',') %}
+        {% set header_row = 'true' %}
     {% else %}
         {% set header_row = '' %}
     {% endif %}
@@ -74,21 +83,18 @@
     
     {# Export to S3 with headers #}
     {% if header_row %}
-        {# Build header row query - create a SELECT with column names as string literals #}
-        {% set header_select = col_names.split(',') | map('trim') | map('upper') | map('quote') | join(',') %}
-        
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Select column names as string literals
+            -- Header row: Column names as string literals
             SELECT {{ header_select }}
             FROM {{ source_table }}
             WHERE 1=0  -- Ensures we only get header structure
             
             UNION ALL
             
-            -- Data rows
-            SELECT * 
+            -- Data rows: Cast all columns to VARCHAR to match header row types
+            SELECT {{ data_select }}
             FROM {{ source_table }}
             {% if order_by_column %}
             ORDER BY {{ order_by_column }}
