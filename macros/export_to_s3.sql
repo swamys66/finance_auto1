@@ -63,10 +63,14 @@
         {% if execute and cols_result.columns[0].values()[0] %}
             {% set col_list = cols_result.columns[0].values()[0] %}
             {% set col_array = col_list.split(',') | map('trim') %}
-            {# Create header select with quoted column names #}
+            {# Create header select with quoted uppercase column names #}
             {% set header_select = col_array | map('upper') | map('quote') | join(',') %}
-            {# Create data select with all columns cast to VARCHAR #}
-            {% set data_select = col_array | map('upper') | map('concat', '::VARCHAR') | join(',') %}
+            {# Create data select with original column names cast to VARCHAR #}
+            {% set data_select_parts = [] %}
+            {% for col in col_array %}
+                {% set _ = data_select_parts.append(col ~ '::VARCHAR') %}
+            {% endfor %}
+            {% set data_select = data_select_parts | join(',') %}
         {% else %}
             {% set include_headers = false %}
         {% endif %}
