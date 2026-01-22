@@ -144,11 +144,9 @@
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Use VALUES with explicit column names
+            -- Header row: Use table function to create single row with header values
             SELECT {{ header_select }}
-            FROM (VALUES (1)) AS t(dummy)
-            WHERE dummy = 1
-            {{ log("Export SQL header part: SELECT " ~ header_select[:200] ~ " FROM ...", info=True) }}
+            FROM TABLE(FLATTEN(INPUT => ARRAY_CONSTRUCT(1))) AS t
             
             UNION ALL
             
