@@ -48,6 +48,28 @@
         {% set month_str = 'YYYYMM' %}
     {% endif %}
     
+    {# Get column names if headers are needed #}
+    {% if include_headers %}
+        {% set table_parts = source_table.split('.') %}
+        {% set get_columns_sql %}
+        SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_CATALOG = UPPER('{{ table_parts[0] }}')
+          AND TABLE_SCHEMA = UPPER('{{ table_parts[1] }}')
+          AND TABLE_NAME = UPPER('{{ table_parts[2] }}')
+        {% endset %}
+        
+        {% set cols_result = run_query(get_columns_sql) %}
+        {% if execute and cols_result.columns[0].values()[0] %}
+            {% set col_list = cols_result.columns[0].values()[0] %}
+            {% set col_array = col_list.split(',') | map('trim') %}
+            {# Create header select with quoted column names #}
+            {% set header_select = col_array | map('upper') | map('quote') | join(',') %}
+        {% else %}
+            {% set include_headers = false %}
+        {% endif %}
+    {% endif %}
+    
     {# Remove existing file if overwrite is true #}
     {% if overwrite %}
         {% set remove_sql %}
@@ -58,25 +80,60 @@
     {% endif %}
     
     {# Export to S3 #}
-    {% set export_sql %}
-    COPY INTO @{{ stage_name }}/{{ file_name }}
-    FROM (
-        SELECT * 
-        FROM {{ source_table }}
-        {% if order_by_column %}
-        ORDER BY {{ order_by_column }}
-        {% endif %}
-    )
-    FILE_FORMAT = (TYPE = 'CSV' 
-                   FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
-                   NULL_IF = ('NULL', 'null', '')
-                   ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE
-                   ESCAPE_UNENCLOSED_FIELD = '\\'
-                   REPLACE_INVALID_CHARACTERS = TRUE)
-    SINGLE = TRUE
-    OVERWRITE = TRUE
-    ;
-    {% endset %}
+    {% if include_headers %}
+        {# Export with header row - cast all data to VARCHAR to match header row #}
+        {% set export_sql %}
+        COPY INTO @{{ stage_name }}/{{ file_name }}
+        FROM (
+            -- Header row: Column names as string literals
+            SELECT {{ header_select }}
+            FROM {{ source_table }}
+            WHERE 1=0  -- Ensures we only get header structure
+            
+            UNION ALL
+            
+            -- Data rows: Cast all columns to VARCHAR to match header row types
+            SELECT * 
+            FROM (
+                SELECT * 
+                FROM {{ source_table }}
+                {% if order_by_column %}
+                ORDER BY {{ order_by_column }}
+                {% endif %}
+            )
+        )
+        FILE_FORMAT = (TYPE = 'CSV' 
+                       FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
+                       NULL_IF = ('NULL', 'null', '')
+                       ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE
+                       ESCAPE_UNENCLOSED_FIELD = '\\'
+                       REPLACE_INVALID_CHARACTERS = TRUE)
+        SINGLE = TRUE
+        OVERWRITE = TRUE
+        ;
+        {% endset %}
+    {% else %}
+        {# Export without headers #}
+        {% set export_sql %}
+        COPY INTO @{{ stage_name }}/{{ file_name }}
+        FROM (
+            SELECT * 
+            FROM {{ source_table }}
+            {% if order_by_column %}
+            ORDER BY {{ order_by_column }}
+            {% endif %}
+        )
+        FILE_FORMAT = (TYPE = 'CSV' 
+                       FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
+                       NULL_IF = ('NULL', 'null', '')
+                       ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE
+                       ESCAPE_UNENCLOSED_FIELD = '\\'
+                       REPLACE_INVALID_CHARACTERS = TRUE)
+        SINGLE = TRUE
+        OVERWRITE = TRUE
+        ;
+        {% endset %}
+    {% endif %}
     
     {% do run_query(export_sql) %}
     {{ log("Data exported to S3: " ~ file_name ~ " from " ~ source_table ~ " (data_month: " ~ month_str ~ ")" ~ (" with headers" if include_headers else " without headers"), info=True) }}
