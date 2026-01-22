@@ -78,7 +78,8 @@ END;
 $$;
 
 -- Step 3: Call the stored procedure
-CALL dev_data_ingress.finance.add_headers_to_export($FILE_NAME, $NEW_FILE_NAME);
+-- Note: Variables are passed directly - make sure FILE_NAME and NEW_FILE_NAME are set above
+CALL dev_data_ingress.finance.add_headers_to_export(:FILE_NAME, :NEW_FILE_NAME);
 
 -- Step 3: Verify the new file
 SELECT 
