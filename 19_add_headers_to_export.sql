@@ -30,14 +30,14 @@ $$
 BEGIN
     -- First, create a temporary table with the data from the existing file
     EXECUTE IMMEDIATE 
-        'CREATE OR REPLACE TEMPORARY TABLE temp_export_data AS
+        CONCAT('CREATE OR REPLACE TEMPORARY TABLE temp_export_data AS
         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
                $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
                $41, $42, $43
-        FROM @dev_data_ingress.finance.s3_test_finance_automation_output/' || FILE_NAME || '
-        FILE_FORMAT = (TYPE = ''CSV'' FIELD_OPTIONALLY_ENCLOSED_BY = ''"'' NULL_IF = (''NULL'', ''null'', ''''))';
+        FROM @dev_data_ingress.finance.s3_test_finance_automation_output/', FILE_NAME, '
+        FILE_FORMAT = (TYPE = ''CSV'' FIELD_OPTIONALLY_ENCLOSED_BY = ''"'' NULL_IF = (''NULL'', ''null'', ''''))');
     
     -- Create header table with split columns
     CREATE OR REPLACE TEMPORARY TABLE temp_header_split AS
@@ -68,10 +68,10 @@ BEGIN
     
     -- Now export header + data
     EXECUTE IMMEDIATE 
-        'COPY INTO @dev_data_ingress.finance.s3_test_finance_automation_output/' || NEW_FILE_NAME || '
+        CONCAT('COPY INTO @dev_data_ingress.finance.s3_test_finance_automation_output/', NEW_FILE_NAME, '
         FROM (SELECT * FROM temp_header_split UNION ALL SELECT * FROM temp_export_data)
         FILE_FORMAT = (TYPE = ''CSV'' FIELD_OPTIONALLY_ENCLOSED_BY = ''"'' NULL_IF = (''NULL'', ''null'', '''') ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE)
-        SINGLE = TRUE OVERWRITE = TRUE';
+        SINGLE = TRUE OVERWRITE = TRUE');
     
     RETURN 'Headers added successfully to ' || NEW_FILE_NAME;
 END;
