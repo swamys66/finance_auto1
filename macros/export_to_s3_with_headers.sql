@@ -111,7 +111,7 @@
         {# Create header select with quoted uppercase column names (as string literals, cast to VARCHAR) #}
         {% set header_select_parts = [] %}
         {% for col in col_array %}
-            {% set quoted_col = "'" ~ (col | upper) ~ "'::VARCHAR" %}
+            {% set quoted_col = "CAST('" ~ (col | upper) ~ "' AS VARCHAR)" %}
             {% set _ = header_select_parts.append(quoted_col) %}
         {% endfor %}
         {% set header_select = header_select_parts | join(',') %}
@@ -144,9 +144,9 @@
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Use table function to create single row with header values
+            -- Header row: String literals as header values
             SELECT {{ header_select }}
-            FROM TABLE(FLATTEN(INPUT => ARRAY_CONSTRUCT(1))) AS t
+            FROM (SELECT 1) AS t
             
             UNION ALL
             
