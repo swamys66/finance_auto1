@@ -29,8 +29,7 @@ AS
 $$
 BEGIN
     -- First, create a temporary table with the data from the existing file
-    EXECUTE IMMEDIATE 
-        'CREATE OR REPLACE TEMPORARY TABLE temp_export_data AS
+    LET sql_stmt := 'CREATE OR REPLACE TEMPORARY TABLE temp_export_data AS
         SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
                $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
@@ -38,6 +37,7 @@ BEGIN
                $41, $42, $43
         FROM @dev_data_ingress.finance.s3_test_finance_automation_output/' || FILE_NAME || '
         FILE_FORMAT = (TYPE = ''CSV'' FIELD_OPTIONALLY_ENCLOSED_BY = ''"'' NULL_IF = (''NULL'', ''null'', ''''))';
+    EXECUTE IMMEDIATE sql_stmt;
     
     -- Create header table with split columns
     CREATE OR REPLACE TEMPORARY TABLE temp_header_split AS
@@ -67,19 +67,19 @@ BEGIN
     FROM dev_data_ingress.finance.temp_header;
     
     -- Now export header + data
-    EXECUTE IMMEDIATE 
-        'COPY INTO @dev_data_ingress.finance.s3_test_finance_automation_output/' || NEW_FILE_NAME || '
+    LET export_sql := 'COPY INTO @dev_data_ingress.finance.s3_test_finance_automation_output/' || NEW_FILE_NAME || '
         FROM (SELECT * FROM temp_header_split UNION ALL SELECT * FROM temp_export_data)
         FILE_FORMAT = (TYPE = ''CSV'' FIELD_OPTIONALLY_ENCLOSED_BY = ''"'' NULL_IF = (''NULL'', ''null'', '''') ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE)
         SINGLE = TRUE OVERWRITE = TRUE';
+    EXECUTE IMMEDIATE export_sql;
     
     RETURN 'Headers added successfully to ' || NEW_FILE_NAME;
 END;
 $$;
 
 -- Step 3: Call the stored procedure
--- Note: Variables are passed directly - make sure FILE_NAME and NEW_FILE_NAME are set above
-CALL dev_data_ingress.finance.add_headers_to_export(:FILE_NAME, :NEW_FILE_NAME);
+-- Note: Make sure FILE_NAME and NEW_FILE_NAME variables are set above
+CALL dev_data_ingress.finance.add_headers_to_export($FILE_NAME, $NEW_FILE_NAME);
 
 -- Step 3: Verify the new file
 SELECT 
