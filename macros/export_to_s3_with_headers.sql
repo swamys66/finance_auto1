@@ -51,11 +51,6 @@
     {% set schema_name = table_parts[1] %}
     {% set table_name_only = table_parts[2] %}
     
-    {# Try to get column names - use LIMIT 0 query which is more reliable for views #}
-    {% set get_columns_sql %}
-    SELECT * FROM {{ source_table }} LIMIT 0
-    {% endset %}
-    
     {# Get column names using DESCRIBE (more reliable for views) #}
     {% set describe_sql %}
     DESCRIBE TABLE {{ source_table }}
