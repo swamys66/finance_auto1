@@ -89,9 +89,11 @@
                 {% set col_values = cols_result.columns[0].values() %}
                 {% if col_values and col_values[0] %}
                     {% set first_value = col_values[0] %}
-                {% if first_value %}
                     {% set col_names = first_value %}
-                    {% set col_array = col_names.split(',') | map('trim') %}
+                    {% set col_array = [] %}
+                    {% for col in col_names.split(',') %}
+                        {% set _ = col_array.append(col | trim) %}
+                    {% endfor %}
                     {{ log("Found " ~ col_array|length ~ " columns from INFORMATION_SCHEMA: " ~ col_names, info=True) }}
                 {% else %}
                     {{ log("WARNING: Column list is empty for " ~ source_table, info=True) }}
