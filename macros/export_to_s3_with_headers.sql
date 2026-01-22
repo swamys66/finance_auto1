@@ -51,28 +51,45 @@
     {% set schema_name = table_parts[1] %}
     {% set table_name_only = table_parts[2] %}
     
-    {# Try to get column names from INFORMATION_SCHEMA #}
+    {# Try to get column names - use LIMIT 0 query which is more reliable for views #}
     {% set get_columns_sql %}
-    SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_CATALOG = UPPER('{{ database_name }}')
-      AND TABLE_SCHEMA = UPPER('{{ schema_name }}')
-      AND TABLE_NAME = UPPER('{{ table_name_only }}')
+    SELECT * FROM {{ source_table }} LIMIT 0
     {% endset %}
     
     {% set cols_result = run_query(get_columns_sql) %}
     {% set col_names = '' %}
-    {% if execute %}
-        {% if cols_result.columns[0].values() and cols_result.columns[0].values()[0] %}
-            {% set col_names = cols_result.columns[0].values()[0] %}
-            {{ log("Found columns: " ~ col_names, info=True) }}
+    {% set col_array = [] %}
+    
+    {% if execute and cols_result %}
+        {# Get column names from query result metadata #}
+        {% set column_names = cols_result.column_names %}
+        {% if column_names %}
+            {% set col_array = column_names %}
+            {% set col_names = column_names | join(',') %}
+            {{ log("Found " ~ column_names|length ~ " columns from query metadata", info=True) }}
         {% else %}
-            {{ log("WARNING: No columns found in INFORMATION_SCHEMA for " ~ source_table, info=True) }}
+            {# Fallback: Try INFORMATION_SCHEMA #}
+            {% set get_columns_sql2 %}
+            SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_CATALOG = UPPER('{{ database_name }}')
+              AND TABLE_SCHEMA = UPPER('{{ schema_name }}')
+              AND TABLE_NAME = UPPER('{{ table_name_only }}')
+            {% endset %}
+            {% set cols_result2 = run_query(get_columns_sql2) %}
+            {% if execute and cols_result2.columns[0].values() and cols_result2.columns[0].values()[0] %}
+                {% set col_names = cols_result2.columns[0].values()[0] %}
+                {% set col_array = col_names.split(',') | map('trim') %}
+                {{ log("Found columns from INFORMATION_SCHEMA: " ~ col_names, info=True) }}
+            {% else %}
+                {{ log("WARNING: Cannot get column names for " ~ source_table, info=True) }}
+            {% endif %}
         {% endif %}
+    {% else %}
+        {{ log("WARNING: Query execution failed for column detection", info=True) }}
     {% endif %}
     
-    {% if col_names %}
-        {% set col_array = col_names.split(',') | map('trim') %}
+    {% if col_array and col_array|length > 0 %}
         {# Create header select with quoted uppercase column names #}
         {% set header_select = col_array | map('upper') | map('quote') | join(',') %}
         {# Create data select with original column names cast to VARCHAR #}
