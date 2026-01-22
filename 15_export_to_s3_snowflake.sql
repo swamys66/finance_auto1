@@ -20,58 +20,39 @@
 --   - OVERWRITE: Whether to overwrite existing files (default: true)
 
 -- ============================================================================
--- STEP 1: Set Variables (Update these values)
+-- STEP 1: Extract data_month from source table dynamically
 -- ============================================================================
-SET STAGE_NAME = 'dev_data_ingress.finance.s3_test_finance_automation_output';
-SET FILE_PREFIX = 'partner_finance_mapped';
-SET SOURCE_TABLE = 'dev_data_ingress.dbt_sswamynathan_finance._2_join_revenue_with_mapping';
-SET ORDER_BY_COLUMN = 'ID';
-SET DATA_MONTH_COLUMN = 'data_month';
-SET OVERWRITE = TRUE;
-
--- ============================================================================
--- STEP 2: Extract data_month from source table dynamically
--- ============================================================================
-SET DATA_MONTH_QUERY = $$
-    SELECT DISTINCT TO_CHAR($DATA_MONTH_COLUMN, 'YYYYMM') AS month_str
-    FROM $SOURCE_TABLE
-    WHERE $DATA_MONTH_COLUMN IS NOT NULL
+-- Get the data_month value and format as YYYYMM
+SET (MONTH_STR) = (
+    SELECT DISTINCT TO_CHAR(data_month, 'YYYYMM') AS month_str
+    FROM dev_data_ingress.dbt_sswamynathan_finance._2_join_revenue_with_mapping
+    WHERE data_month IS NOT NULL
     ORDER BY month_str DESC
     LIMIT 1
-$$;
-
--- Replace variables in query
-SET DATA_MONTH_QUERY = REPLACE(REPLACE(REPLACE($DATA_MONTH_QUERY, '$DATA_MONTH_COLUMN', $DATA_MONTH_COLUMN), '$SOURCE_TABLE', $SOURCE_TABLE), '$$', '');
-
--- Execute query to get month string
-SET MONTH_STR = (SELECT month_str FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())));
+);
 
 -- Construct filename
-SET FILE_NAME = $FILE_PREFIX || '_' || $MONTH_STR || '.csv';
+SET FILE_NAME = 'partner_finance_mapped_' || $MONTH_STR || '.csv';
+
+-- Display the filename that will be used
+SELECT 
+    'File will be exported as: ' || $FILE_NAME AS export_info,
+    'Data month: ' || $MONTH_STR AS data_month_info;
 
 -- ============================================================================
--- STEP 3: Remove existing file if overwrite is true
+-- STEP 2: Remove existing file (if overwrite is needed)
 -- ============================================================================
-BEGIN
-    IF ($OVERWRITE) THEN
-        BEGIN
-            REMOVE @$STAGE_NAME/$FILE_NAME;
-            SELECT 'Removed existing file: ' || $FILE_NAME AS removal_status;
-        EXCEPTION
-            WHEN OTHER THEN
-                SELECT 'File does not exist or already removed: ' || $FILE_NAME AS removal_status;
-        END;
-    END IF;
-END;
+-- Uncomment the line below if you want to remove existing file first
+-- REMOVE @dev_data_ingress.finance.s3_test_finance_automation_output/$FILE_NAME;
 
 -- ============================================================================
--- STEP 4: Export to S3
+-- STEP 3: Export to S3
 -- ============================================================================
-COPY INTO @$STAGE_NAME/$FILE_NAME
+COPY INTO @dev_data_ingress.finance.s3_test_finance_automation_output/$FILE_NAME
 FROM (
     SELECT * 
-    FROM IDENTIFIER($SOURCE_TABLE)
-    ORDER BY IDENTIFIER($ORDER_BY_COLUMN)
+    FROM dev_data_ingress.dbt_sswamynathan_finance._2_join_revenue_with_mapping
+    ORDER BY ID
 )
 FILE_FORMAT = (TYPE = 'CSV' 
                FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
@@ -80,19 +61,19 @@ SINGLE = TRUE
 OVERWRITE = TRUE;
 
 -- ============================================================================
--- STEP 5: Verify Export
+-- STEP 4: Verify Export
 -- ============================================================================
 SELECT 
     'EXPORT COMPLETED' AS status,
     $FILE_NAME AS exported_file,
-    $SOURCE_TABLE AS source_table,
+    'dev_data_ingress.dbt_sswamynathan_finance._2_join_revenue_with_mapping' AS source_table,
     $MONTH_STR AS data_month,
     CURRENT_TIMESTAMP() AS export_timestamp;
 
 -- ============================================================================
--- STEP 6: List exported file (optional verification)
+-- STEP 5: List exported file (optional verification)
 -- ============================================================================
-LIST @$STAGE_NAME PATTERN = $FILE_NAME;
+LIST @dev_data_ingress.finance.s3_test_finance_automation_output PATTERN = $FILE_NAME;
 
 -- ============================================================================
 -- ALTERNATIVE VERSION: Using direct SQL without variables (simpler)
