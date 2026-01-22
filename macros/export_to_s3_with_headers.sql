@@ -143,13 +143,13 @@
     
     {# Export to S3 with headers #}
     {% if has_headers %}
-        {# Export with headers - Note: If this fails, export without headers and add them manually #}
+        {# Export with headers #}
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: String literals (if this fails, headers may need to be added manually)
+            -- Header row: Use VALUES with explicit row constructor
             SELECT {{ header_select }}
-            FROM (SELECT 1 AS dummy) t(dummy)
+            FROM (VALUES (1)) AS t
             
             UNION ALL
             
