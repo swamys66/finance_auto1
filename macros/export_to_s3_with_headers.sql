@@ -109,9 +109,10 @@
     {# Check if we have columns and create header/data selects #}
     {% if col_array|length > 0 %}
         {# Create header select with quoted uppercase column names (as string literals, cast to VARCHAR) #}
+        {# Use $$ syntax to ensure quotes are properly included #}
         {% set header_select_parts = [] %}
         {% for col in col_array %}
-            {% set quoted_col = "CAST('" ~ (col | upper) ~ "' AS VARCHAR)" %}
+            {% set quoted_col = "$$" ~ (col | upper) ~ "$$::VARCHAR" %}
             {% set _ = header_select_parts.append(quoted_col) %}
         {% endfor %}
         {% set header_select = header_select_parts | join(',') %}
@@ -144,8 +145,8 @@
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Use VALUES clause to create header row
-            SELECT * FROM (VALUES ({{ header_select }})) AS header_row
+            -- Header row: Select string literals directly
+            SELECT {{ header_select }}
             
             UNION ALL
             
