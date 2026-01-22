@@ -102,7 +102,8 @@
         {{ log("WARNING: DESCRIBE query failed for " ~ source_table, info=True) }}
     {% endif %}
     
-    {% if col_array and col_array|length > 0 %}
+    {# Check if we have columns and create header/data selects #}
+    {% if col_array|length > 0 %}
         {# Create header select with quoted uppercase column names (as string literals) #}
         {% set header_select_parts = [] %}
         {% for col in col_array %}
@@ -121,7 +122,7 @@
         {{ log("Header row will be included with " ~ col_array|length ~ " columns", info=True) }}
     {% else %}
         {% set has_headers = false %}
-        {{ log("WARNING: Cannot get column names, exporting without headers", info=True) %}
+        {{ log("WARNING: Cannot get column names, exporting without headers", info=True) }}
     {% endif %}
     
     {# Remove existing file if overwrite is true #}
