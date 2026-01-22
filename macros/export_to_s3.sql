@@ -47,6 +47,16 @@
         {% set month_str = 'YYYYMM' %}
     {% endif %}
     
+    {# Remove existing file if overwrite is true #}
+    {% if overwrite %}
+        {% set remove_sql %}
+        REMOVE @{{ stage_name }}/{{ file_name }}
+        {% endset %}
+        {% do run_query(remove_sql) %}
+        {{ log("Removed existing file: " ~ file_name, info=True) }}
+    {% endif %}
+    
+    {# Export to S3 #}
     {% set export_sql %}
     COPY INTO @{{ stage_name }}/{{ file_name }}
     FROM (
@@ -60,9 +70,7 @@
                    FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
                    NULL_IF = ('NULL', 'null', ''))
     SINGLE = TRUE
-    {% if overwrite %}
     OVERWRITE = TRUE
-    {% endif %}
     ;
     {% endset %}
     
