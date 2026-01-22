@@ -6,7 +6,7 @@
         tags=['finance', 'revenue', 'mapping', 'export', 's3'],
         description='Exports mapped finance revenue view to S3 bucket',
         post_hook=[
-            "{{ export_to_s3('dev_data_ingress.finance.s3_test_finance_automation_output', 'partner_finance_mapped.csv', 'dev_data_ingress.dbt_sswamynathan_finance._2_join_revenue_with_mapping', 'ID', true, true) }}"
+            "{{ export_to_s3('dev_data_ingress.finance.s3_test_finance_automation_output', 'partner_finance_mapped', 'dev_data_ingress.dbt_sswamynathan_finance._2_join_revenue_with_mapping', 'ID', 'data_month', true) }}"
         ]
     )
 }}
