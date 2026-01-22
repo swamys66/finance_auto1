@@ -115,6 +115,7 @@
             {% set _ = header_select_parts.append(quoted_col) %}
         {% endfor %}
         {% set header_select = header_select_parts | join(',') %}
+        {{ log("Header select SQL (first 100 chars): " ~ header_select[:100], info=True) }}
         
         {# Create data select with original column names cast to VARCHAR #}
         {% set data_select_parts = [] %}
@@ -147,6 +148,7 @@
             SELECT {{ header_select }}
             FROM (VALUES (1)) AS t(dummy)
             WHERE dummy = 1
+            {{ log("Export SQL header part: SELECT " ~ header_select[:200] ~ " FROM ...", info=True) }}
             
             UNION ALL
             
