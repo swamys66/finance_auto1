@@ -66,7 +66,10 @@
         {% if describe_result.columns and describe_result.columns[0] %}
             {% set column_names_list = describe_result.columns[0].values() %}
             {% if column_names_list %}
-                {% set col_array = column_names_list | list %}
+                {% set col_array = [] %}
+                {% for col_name in column_names_list %}
+                    {% set _ = col_array.append(col_name) %}
+                {% endfor %}
                 {% set col_names = col_array | join(',') %}
                 {{ log("Found " ~ col_array|length ~ " columns using DESCRIBE: " ~ col_names, info=True) }}
             {% else %}
