@@ -143,8 +143,9 @@
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Column names as string literals using VALUES
-            SELECT * FROM VALUES ({{ header_select }})
+            -- Header row: Column names as string literals from constant table
+            SELECT {{ header_select }}
+            FROM (SELECT 1 AS dummy) t
             
             UNION ALL
             
