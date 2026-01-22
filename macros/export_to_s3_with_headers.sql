@@ -143,18 +143,13 @@
     
     {# Export to S3 with headers #}
     {% if has_headers %}
-        {# Create header row - use simple string literals with proper quoting #}
+        {# Export with headers - Note: If this fails, export without headers and add them manually #}
         {% set export_sql %}
-        -- Step 1: Create temporary table with header row
-        CREATE OR REPLACE TEMPORARY TABLE temp_header_row AS
-        SELECT {{ header_select }}
-        FROM (SELECT 1) AS t;
-        
-        -- Step 2: Export with UNION ALL
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row from temp table
-            SELECT * FROM temp_header_row
+            -- Header row: String literals (if this fails, headers may need to be added manually)
+            SELECT {{ header_select }}
+            FROM (SELECT 1 AS dummy) t(dummy)
             
             UNION ALL
             
