@@ -105,8 +105,14 @@
     {% endif %}
     
     {% if col_array and col_array|length > 0 %}
-        {# Create header select with quoted uppercase column names #}
-        {% set header_select = col_array | map('upper') | map('quote') | join(',') %}
+        {# Create header select with quoted uppercase column names (as string literals) #}
+        {% set header_select_parts = [] %}
+        {% for col in col_array %}
+            {% set quoted_col = "'" ~ col.upper() ~ "'" %}
+            {% set _ = header_select_parts.append(quoted_col) %}
+        {% endfor %}
+        {% set header_select = header_select_parts | join(',') %}
+        
         {# Create data select with original column names cast to VARCHAR #}
         {% set data_select_parts = [] %}
         {% for col in col_array %}
@@ -117,7 +123,7 @@
         {{ log("Header row will be included with " ~ col_array|length ~ " columns", info=True) }}
     {% else %}
         {% set has_headers = false %}
-        {{ log("WARNING: Cannot get column names, exporting without headers", info=True) }}
+        {{ log("WARNING: Cannot get column names, exporting without headers", info=True) %}
     {% endif %}
     
     {# Remove existing file if overwrite is true #}
