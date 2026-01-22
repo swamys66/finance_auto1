@@ -151,8 +151,7 @@
             UNION ALL
             
             -- Data rows: Cast all columns to VARCHAR to match header row types, ordered
-            SELECT {{ data_select }}
-            FROM (
+            SELECT * FROM (
                 SELECT {{ data_select }}
                 FROM {{ source_table }}
                 {% if order_by_column %}
