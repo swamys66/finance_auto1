@@ -20,35 +20,32 @@ SELECT 'ORACLE_CUSTOMER_NAME,ORACLE_CUSTOMER_NAME_ID,ORACLE_INVOICE_GROUP,ORACLE
 
 -- Step 2: Export header + data to new file
 -- Note: Using EXECUTE IMMEDIATE to properly resolve variables in COPY INTO path
-EXECUTE IMMEDIATE $$
-BEGIN
-    COPY INTO '@dev_data_ingress.finance.s3_test_finance_automation_output/' || $NEW_FILE_NAME
-    FROM (
-        -- Header row from header table
-        SELECT header_line AS line
-        FROM dev_data_ingress.finance.temp_header
-        
-        UNION ALL
-        
-        -- Data rows from existing file
-        SELECT $1 || ',' || $2 || ',' || $3 || ',' || $4 || ',' || $5 || ',' ||
-               $6 || ',' || $7 || ',' || $8 || ',' || $9 || ',' || $10 || ',' ||
-               $11 || ',' || $12 || ',' || $13 || ',' || $14 || ',' || $15 || ',' ||
-               $16 || ',' || $17 || ',' || $18 || ',' || $19 || ',' || $20 || ',' ||
-               $21 || ',' || $22 || ',' || $23 || ',' || $24 || ',' || $25 || ',' ||
-               $26 || ',' || $27 || ',' || $28 || ',' || $29 || ',' || $30 || ',' ||
-               $31 || ',' || $32 || ',' || $33 || ',' || $34 || ',' || $35 || ',' ||
-               $36 || ',' || $37 || ',' || $38 || ',' || $39 || ',' || $40 || ',' ||
-               $41 || ',' || $42 || ',' || $43 AS line
-        FROM '@dev_data_ingress.finance.s3_test_finance_automation_output/' || $FILE_NAME
-    )
-    FILE_FORMAT = (TYPE = 'CSV' 
-                   FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
-                   NULL_IF = ('NULL', 'null', ''))
-    SINGLE = TRUE
-    OVERWRITE = TRUE;
-END;
-$$;
+EXECUTE IMMEDIATE 
+'COPY INTO ''@dev_data_ingress.finance.s3_test_finance_automation_output/' || $NEW_FILE_NAME || '''
+FROM (
+    -- Header row from header table
+    SELECT header_line AS line
+    FROM dev_data_ingress.finance.temp_header
+    
+    UNION ALL
+    
+    -- Data rows from existing file
+    SELECT $1 || '','' || $2 || '','' || $3 || '','' || $4 || '','' || $5 || '','' ||
+           $6 || '','' || $7 || '','' || $8 || '','' || $9 || '','' || $10 || '','' ||
+           $11 || '','' || $12 || '','' || $13 || '','' || $14 || '','' || $15 || '','' ||
+           $16 || '','' || $17 || '','' || $18 || '','' || $19 || '','' || $20 || '','' ||
+           $21 || '','' || $22 || '','' || $23 || '','' || $24 || '','' || $25 || '','' ||
+           $26 || '','' || $27 || '','' || $28 || '','' || $29 || '','' || $30 || '','' ||
+           $31 || '','' || $32 || '','' || $33 || '','' || $34 || '','' || $35 || '','' ||
+           $36 || '','' || $37 || '','' || $38 || '','' || $39 || '','' || $40 || '','' ||
+           $41 || '','' || $42 || '','' || $43 AS line
+    FROM ''@dev_data_ingress.finance.s3_test_finance_automation_output/' || $FILE_NAME || '''
+)
+FILE_FORMAT = (TYPE = ''CSV'' 
+               FIELD_OPTIONALLY_ENCLOSED_BY = ''"'' 
+               NULL_IF = (''NULL'', ''null'', ''''))
+SINGLE = TRUE
+OVERWRITE = TRUE';
 
 -- Step 3: Verify the new file
 SELECT 
