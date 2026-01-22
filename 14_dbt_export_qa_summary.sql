@@ -30,12 +30,13 @@ WITH source_stats AS (
 export_file_list AS (
     SELECT 
         METADATA$FILENAME AS file_name,
-        METADATA$FILE_ROW_NUMBER AS exported_row_count,
-        METADATA$FILE_LAST_MODIFIED AS last_modified,
-        METADATA$FILE_CONTENT_KEY AS content_key,
-        ROW_NUMBER() OVER (ORDER BY METADATA$FILE_LAST_MODIFIED DESC) AS rn
+        MAX(METADATA$FILE_ROW_NUMBER) AS exported_row_count_from_metadata,
+        MAX(METADATA$FILE_LAST_MODIFIED) AS last_modified,
+        MAX(METADATA$FILE_CONTENT_KEY) AS content_key,
+        ROW_NUMBER() OVER (ORDER BY MAX(METADATA$FILE_LAST_MODIFIED) DESC) AS rn
     FROM @dev_data_ingress.finance.s3_test_finance_automation_output
     WHERE METADATA$FILENAME LIKE '%partner_finance_mapped%'
+    GROUP BY METADATA$FILENAME
 ),
 latest_export AS (
     SELECT *
@@ -44,8 +45,8 @@ latest_export AS (
 ),
 export_data_stats AS (
     SELECT 
-        COUNT(*) AS exported_data_row_count,
-        COUNT(DISTINCT $1) AS exported_unique_ids  -- Assuming ID is first column
+        MAX(METADATA$FILE_ROW_NUMBER) AS exported_data_row_count,
+        COUNT(DISTINCT CASE WHEN $1 IS NOT NULL THEN $1 END) AS exported_unique_ids  -- Assuming ID is first column, exclude NULLs
     FROM @dev_data_ingress.finance.s3_test_finance_automation_output
     WHERE METADATA$FILENAME = (SELECT file_name FROM latest_export)
 ),

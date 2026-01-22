@@ -17,22 +17,23 @@ WITH source_stats AS (
         COUNT(DISTINCT ID) AS source_unique_ids
     FROM {{ ref('_2_join_revenue_with_mapping') }}
 ),
-export_stats AS (
-    SELECT 
-        COUNT(*) AS exported_row_count,
-        COUNT(DISTINCT $1) AS exported_unique_ids  -- Assuming ID is first column
-    FROM @dev_data_ingress.finance.s3_test_finance_automation_output
-    WHERE METADATA$FILENAME LIKE '%partner_finance_mapped%'
-),
 file_list AS (
     SELECT 
         METADATA$FILENAME AS file_name,
-        METADATA$FILE_ROW_NUMBER AS row_count,
-        METADATA$FILE_LAST_MODIFIED AS last_modified
+        MAX(METADATA$FILE_ROW_NUMBER) AS row_count,
+        MAX(METADATA$FILE_LAST_MODIFIED) AS last_modified
     FROM @dev_data_ingress.finance.s3_test_finance_automation_output
     WHERE METADATA$FILENAME LIKE '%partner_finance_mapped%'
-    ORDER BY METADATA$FILE_LAST_MODIFIED DESC
+    GROUP BY METADATA$FILENAME
+    ORDER BY MAX(METADATA$FILE_LAST_MODIFIED) DESC
     LIMIT 1
+),
+export_stats AS (
+    SELECT 
+        MAX(METADATA$FILE_ROW_NUMBER) AS exported_row_count,
+        COUNT(DISTINCT CASE WHEN $1 IS NOT NULL THEN $1 END) AS exported_unique_ids  -- Assuming ID is first column, exclude NULLs
+    FROM @dev_data_ingress.finance.s3_test_finance_automation_output
+    WHERE METADATA$FILENAME = (SELECT file_name FROM file_list)
 )
 SELECT 
     'EXPORT VALIDATION FAILED' AS validation_status,
