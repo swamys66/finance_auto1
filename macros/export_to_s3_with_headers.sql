@@ -150,12 +150,15 @@
             
             UNION ALL
             
-            -- Data rows: Cast all columns to VARCHAR to match header row types
+            -- Data rows: Cast all columns to VARCHAR to match header row types, ordered
             SELECT {{ data_select }}
-            FROM {{ source_table }}
-            {% if order_by_column %}
-            ORDER BY {{ order_by_column }}
-            {% endif %}
+            FROM (
+                SELECT {{ data_select }}
+                FROM {{ source_table }}
+                {% if order_by_column %}
+                ORDER BY {{ order_by_column }}
+                {% endif %}
+            )
         )
         FILE_FORMAT = (TYPE = 'CSV' 
                        FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
