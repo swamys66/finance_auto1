@@ -27,7 +27,7 @@ SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
        $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
        $41, $42, $43
 FROM @dev_data_ingress.finance.s3_test_finance_automation_output/partner_finance_mapped_202509.csv
-FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' NULL_IF = ('NULL', 'null', ''));
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '\x22' NULL_IF = ('NULL', 'null', ''));
 
 -- Step 3: Create header split table
 CREATE OR REPLACE TEMPORARY TABLE temp_header_split AS
@@ -60,7 +60,7 @@ FROM dev_data_ingress.finance.temp_header;
 -- NOTE: Replace 'partner_finance_mapped_202509_with_headers.csv' with your actual NEW_FILE_NAME variable value
 COPY INTO @dev_data_ingress.finance.s3_test_finance_automation_output/partner_finance_mapped_202509_with_headers.csv
 FROM (SELECT * FROM temp_header_split UNION ALL SELECT * FROM temp_export_data)
-FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '"' NULL_IF = ('NULL', 'null', '') ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE)
+FILE_FORMAT = (TYPE = 'CSV' FIELD_OPTIONALLY_ENCLOSED_BY = '\x22' NULL_IF = ('NULL', 'null', '') ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE)
 SINGLE = TRUE OVERWRITE = TRUE;
 
 -- Step 5: Verify the new file
