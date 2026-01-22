@@ -143,9 +143,10 @@
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Column names as string literals from constant table
+            -- Header row: Use VALUES with explicit column names
             SELECT {{ header_select }}
-            FROM (SELECT 1 AS dummy) t
+            FROM (VALUES (1)) AS t(dummy)
+            WHERE dummy = 1
             
             UNION ALL
             
