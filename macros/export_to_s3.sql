@@ -47,13 +47,16 @@
         {% set month_str = 'YYYYMM' %}
     {% endif %}
     
-    {# Remove existing file if overwrite is true #}
+    {# Remove existing files matching the pattern if overwrite is true #}
     {% if overwrite %}
+        {# Use pattern matching to remove any files with the same prefix and month #}
+        {% set remove_pattern = file_prefix ~ '_' ~ month_str ~ '.*' %}
         {% set remove_sql %}
-        REMOVE @{{ stage_name }}/{{ file_name }}
+        REMOVE @{{ stage_name }}/
+        PATTERN = '{{ remove_pattern }}'
         {% endset %}
         {% do run_query(remove_sql) %}
-        {{ log("Removed existing file: " ~ file_name, info=True) }}
+        {{ log("Removed existing files matching pattern: " ~ remove_pattern, info=True) }}
     {% endif %}
     
     {# Export to S3 #}
