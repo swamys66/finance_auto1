@@ -108,10 +108,10 @@
     
     {# Check if we have columns and create header/data selects #}
     {% if col_array|length > 0 %}
-        {# Create header select with quoted uppercase column names (as string literals) #}
+        {# Create header select with quoted uppercase column names (as string literals, cast to VARCHAR) #}
         {% set header_select_parts = [] %}
         {% for col in col_array %}
-            {% set quoted_col = "'" ~ (col | upper) ~ "'" %}
+            {% set quoted_col = "'" ~ (col | upper) ~ "'::VARCHAR" %}
             {% set _ = header_select_parts.append(quoted_col) %}
         {% endfor %}
         {% set header_select = header_select_parts | join(',') %}
