@@ -56,34 +56,52 @@
     SELECT * FROM {{ source_table }} LIMIT 0
     {% endset %}
     
-    {# Get column names from INFORMATION_SCHEMA (works for both tables and views) #}
-    {% set get_columns_sql %}
-    SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list
-    FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE TABLE_CATALOG = UPPER('{{ database_name }}')
-      AND TABLE_SCHEMA = UPPER('{{ schema_name }}')
-      AND TABLE_NAME = UPPER('{{ table_name_only }}')
+    {# Get column names using DESCRIBE (more reliable for views) #}
+    {% set describe_sql %}
+    DESCRIBE TABLE {{ source_table }}
     {% endset %}
     
-    {% set cols_result = run_query(get_columns_sql) %}
+    {% set describe_result = run_query(describe_sql) %}
     {% set col_names = '' %}
     {% set col_array = [] %}
     
-    {% if execute and cols_result %}
-        {% if cols_result.columns and cols_result.columns[0] and cols_result.columns[0].values() %}
-            {% set first_value = cols_result.columns[0].values()[0] %}
-            {% if first_value %}
-                {% set col_names = first_value %}
-                {% set col_array = col_names.split(',') | map('trim') %}
-                {{ log("Found " ~ col_array|length ~ " columns: " ~ col_names, info=True) }}
+    {% if execute and describe_result %}
+        {# DESCRIBE returns: name, type, kind, null, default, primary key, unique key, check, expression, comment, policy name #}
+        {# Column name is in the first column #}
+        {% if describe_result.columns and describe_result.columns[0] %}
+            {% set column_names_list = describe_result.columns[0].values() %}
+            {% if column_names_list %}
+                {% set col_array = column_names_list | list %}
+                {% set col_names = col_array | join(',') %}
+                {{ log("Found " ~ col_array|length ~ " columns using DESCRIBE: " ~ col_names, info=True) }}
             {% else %}
-                {{ log("WARNING: Column list is empty for " ~ source_table, info=True) }}
+                {{ log("WARNING: DESCRIBE returned no column names for " ~ source_table, info=True) }}
             {% endif %}
         {% else %}
-            {{ log("WARNING: Cannot access column results for " ~ source_table, info=True) }}
+            {# Fallback: Try INFORMATION_SCHEMA with exact case matching #}
+            {% set get_columns_sql %}
+            SELECT LISTAGG(COLUMN_NAME, ',') WITHIN GROUP (ORDER BY ORDINAL_POSITION) AS col_list
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_CATALOG = '{{ database_name }}'
+              AND TABLE_SCHEMA = '{{ schema_name }}'
+              AND TABLE_NAME = '{{ table_name_only }}'
+            {% endset %}
+            {% set cols_result = run_query(get_columns_sql) %}
+            {% if execute and cols_result and cols_result.columns and cols_result.columns[0] and cols_result.columns[0].values() %}
+                {% set first_value = cols_result.columns[0].values()[0] %}
+                {% if first_value %}
+                    {% set col_names = first_value %}
+                    {% set col_array = col_names.split(',') | map('trim') %}
+                    {{ log("Found " ~ col_array|length ~ " columns from INFORMATION_SCHEMA: " ~ col_names, info=True) }}
+                {% else %}
+                    {{ log("WARNING: Column list is empty for " ~ source_table, info=True) }}
+                {% endif %}
+            {% else %}
+                {{ log("WARNING: Cannot get column names from INFORMATION_SCHEMA for " ~ source_table, info=True) }}
+            {% endif %}
         {% endif %}
     {% else %}
-        {{ log("WARNING: Query execution failed for column detection on " ~ source_table, info=True) }}
+        {{ log("WARNING: DESCRIBE query failed for " ~ source_table, info=True) }}
     {% endif %}
     
     {% if col_array and col_array|length > 0 %}
