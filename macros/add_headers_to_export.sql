@@ -34,8 +34,8 @@
     {% set create_format_sql %}
     CREATE FILE FORMAT IF NOT EXISTS {{ file_format_name }}
         TYPE = 'CSV'
-        FIELD_OPTIONALLY_ENCLOSED_BY = '"'
-        NULL_IF = ('NULL', 'null', '');
+        FIELD_OPTIONALLY_ENCLOSED_BY = '\x22'
+        NULL_IF = ('NULL', 'null', '')
     {% endset %}
     
     {% do run_query(create_format_sql) %}
