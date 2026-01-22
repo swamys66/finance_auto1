@@ -65,6 +65,8 @@
             {% set col_array = col_list.split(',') | map('trim') %}
             {# Create header select with quoted column names #}
             {% set header_select = col_array | map('upper') | map('quote') | join(',') %}
+            {# Create data select with all columns cast to VARCHAR #}
+            {% set data_select = col_array | map('upper') | map('concat', '::VARCHAR') | join(',') %}
         {% else %}
             {% set include_headers = false %}
         {% endif %}
@@ -93,14 +95,11 @@
             UNION ALL
             
             -- Data rows: Cast all columns to VARCHAR to match header row types
-            SELECT * 
-            FROM (
-                SELECT * 
-                FROM {{ source_table }}
-                {% if order_by_column %}
-                ORDER BY {{ order_by_column }}
-                {% endif %}
-            )
+            SELECT {{ data_select }}
+            FROM {{ source_table }}
+            {% if order_by_column %}
+            ORDER BY {{ order_by_column }}
+            {% endif %}
         )
         FILE_FORMAT = (TYPE = 'CSV' 
                        FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
