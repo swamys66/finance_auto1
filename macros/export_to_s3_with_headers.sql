@@ -145,8 +145,9 @@
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Select string literals directly
+            -- Header row: Select string literals with FROM clause
             SELECT {{ header_select }}
+            FROM (SELECT 1) AS t
             
             UNION ALL
             
