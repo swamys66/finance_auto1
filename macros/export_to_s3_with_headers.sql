@@ -143,21 +143,18 @@
     
     {# Export to S3 with headers #}
     {% if has_headers %}
-        {# Create header row using string concatenation to ensure quotes are preserved #}
-        {% set header_values_list = [] %}
-        {% for col in col_array %}
-            {% set col_upper = col | upper %}
-            {% set header_val = "CONCAT('" ~ col_upper ~ "')" %}
-            {% set _ = header_values_list.append(header_val) %}
-        {% endfor %}
-        {% set header_values = header_values_list | join(',') %}
-        
+        {# Create header row - use simple string literals with proper quoting #}
         {% set export_sql %}
+        -- Step 1: Create temporary table with header row
+        CREATE OR REPLACE TEMPORARY TABLE temp_header_row AS
+        SELECT {{ header_select }}
+        FROM (SELECT 1) AS t;
+        
+        -- Step 2: Export with UNION ALL
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Use CONCAT to ensure string literals are properly handled
-            SELECT {{ header_values }}
-            FROM (SELECT 1) AS t
+            -- Header row from temp table
+            SELECT * FROM temp_header_row
             
             UNION ALL
             
