@@ -144,9 +144,8 @@
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: String literals as header values
-            SELECT {{ header_select }}
-            FROM (SELECT 1) AS t
+            -- Header row: Use VALUES clause to create header row
+            SELECT * FROM (VALUES ({{ header_select }})) AS header_row
             
             UNION ALL
             
