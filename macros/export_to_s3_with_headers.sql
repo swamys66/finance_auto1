@@ -143,21 +143,17 @@
         {% set export_sql %}
         COPY INTO @{{ stage_name }}/{{ file_name }}
         FROM (
-            -- Header row: Column names as string literals
+            -- Header row: Column names as string literals (using VALUES to ensure 1 row)
             SELECT {{ header_select }}
-            FROM {{ source_table }}
-            WHERE 1=0  -- Ensures we only get header structure
             
             UNION ALL
             
             -- Data rows: Cast all columns to VARCHAR to match header row types, ordered
-            SELECT * FROM (
-                SELECT {{ data_select }}
-                FROM {{ source_table }}
-                {% if order_by_column %}
-                ORDER BY {{ order_by_column }}
-                {% endif %}
-            )
+            SELECT {{ data_select }}
+            FROM {{ source_table }}
+            {% if order_by_column %}
+            ORDER BY {{ order_by_column }}
+            {% endif %}
         )
         FILE_FORMAT = (TYPE = 'CSV' 
                        FIELD_OPTIONALLY_ENCLOSED_BY = '"' 
